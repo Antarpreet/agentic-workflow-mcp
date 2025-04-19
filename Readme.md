@@ -21,7 +21,7 @@ This has been tested for `VS Code`.
 1. Clone the repository:
 
    ```bash
-   git clone
+   git clone https://github.com/Antarpreet/agentic-workflow-mcp.git
    ```
 
 2. Start an LLM server using the ollama CLI. For example, to start the `deepseek-r1:14b` model, run:
