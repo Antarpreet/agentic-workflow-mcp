@@ -12,7 +12,7 @@
             "response"
         ]
     },
-    "verbose": true,
+    "verbose": false,
     "agents": [
         {
             "name": "orchestrator",
