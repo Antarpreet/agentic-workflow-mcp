@@ -41,82 +41,19 @@ async def get_config(file_path):
         raise ValueError(f"Error reading config file {file_path}: {e}")
 
 
-async def invoke_orchestrator(orchestrator, config, user_prompt, agents_list, logs):
+async def invoke_agent_generic(agent, config, prompt_data, logs):
     """
-    Invokes the orchestrator agent with the user prompt and list of agents.
-    Sends a request to the local Ollama server and returns the response.
-    """
-    try:
-        # Prepare orchestrator prompt
-        if "prompt" in orchestrator:
-            orchestrator_prompt = orchestrator["prompt"].format(
-            agents_list=", ".join(agents_list),
-            user_prompt=user_prompt
-            )
-        else:
-            with open(orchestrator["prompt_file"], "r") as file:
-                prompt_template = file.read()
-                orchestrator_prompt = prompt_template.format(
-                    agents_list=", ".join(agents_list),
-                    user_prompt=user_prompt
-                )
-        
-        log_message(logs, f"Orchestrator prompt: {orchestrator_prompt}")
-
-        # Build Ollama-compatible payload
-        payload = {
-            "model": orchestrator.get("model", config["default_model"]),
-            "prompt": orchestrator_prompt,
-            "stream": config.get("stream", False),
-            "format": orchestrator.get("output_format", config["default_output_format"])
-        }
-
-        # If agents_list is empty, use default format
-        if not agents_list:
-            payload["format"] = config["default_output_format"]
-
-        # Send request to local Ollama server
-        async with httpx.AsyncClient() as client:
-            response = await client.post(f"{config['url']}/api/generate", json=payload)
-            response.raise_for_status()
-            
-            orchestrator_response = response.json().get("response", "")
-        
-        log_message(logs, f"Orchestrator response: {orchestrator_response}")
-
-        # Return the orchestrator's response
-        return json.loads(orchestrator_response)
-
-    except httpx.RequestError as e:
-        log_message(logs, f"HTTP request error while invoking orchestrator: {e}")
-    except KeyError as e:
-        log_message(logs, f"Missing key in configuration or response: {e}")
-    except json.JSONDecodeError as e:
-        log_message(logs, f"Error decoding JSON response from orchestrator: {e}")
-    except Exception as e:
-        log_message(logs, f"Unexpected error during orchestrator invocation: {e}")
-
-
-async def invoke_agent(agent_name, config, user_prompt, logs):
-    """
-    Invokes a single agent with the given user prompt.
+    Generic function to invoke an agent (orchestrator, regular agent, or aggregator).
     Sends a request to the agent's endpoint and returns the response.
     """
     try:
-        agent = next((agent for agent in config["agents"] if agent["name"] == agent_name), None)
-        
-        # Check if agent is in the configuration
-        if not agent:
-            raise ValueError(f"Agent {agent_name} not found in configuration.")
-
         # Prepare agent prompt
         if "prompt" in agent:
-            agent_prompt = agent["prompt"].format(user_prompt=user_prompt)
+            agent_prompt = agent["prompt"].format(**prompt_data)
         else:
             with open(agent["prompt_file"], "r") as file:
                 prompt_template = file.read()
-                agent_prompt = prompt_template.format(user_prompt=user_prompt)
-        
+                agent_prompt = prompt_template.format(**prompt_data)
 
         payload = {
             "model": agent.get("model", config["default_model"]),
@@ -130,50 +67,48 @@ async def invoke_agent(agent_name, config, user_prompt, logs):
             response.raise_for_status()
             agent_response = response.json().get("response", "")
 
-        log_message(logs, f"Agent {agent_name} response: {agent_response}")
-        return {agent_name: agent_response}
+        log_message(logs, f"{agent['name']} response: {agent_response}")
+        return agent_response
 
     except httpx.RequestError as e:
-        log_message(logs, f"HTTP request error while invoking agent {agent_name}: {e}")
-        return {agent_name: f"Error: {e}"}
+        log_message(logs, f"HTTP request error while invoking {agent['name']}: {e}")
+        return f"Error: {e}"
     except Exception as e:
-        log_message(logs, f"Unexpected error while invoking agent {agent_name}: {e}")
-        return {agent_name: f"Error: {e}"}
+        log_message(logs, f"Unexpected error while invoking {agent['name']}: {e}")
+        return f"Error: {e}"
+
+
+async def invoke_orchestrator(orchestrator, config, user_prompt, agents_list, logs):
+    """
+    Invokes the orchestrator agent with the user prompt and list of agents.
+    """
+    prompt_data = {
+        "agents_list": ", ".join(agents_list),
+        "user_prompt": user_prompt
+    }
+    return json.loads(await invoke_agent_generic(orchestrator, config, prompt_data, logs))
+
+
+async def invoke_agent(agent_name, config, user_prompt, logs):
+    """
+    Invokes a single agent with the given user prompt.
+    """
+    agent = next((agent for agent in config["agents"] if agent["name"] == agent_name), None)
+    if not agent:
+        log_message(logs, f"Agent {agent_name} not found in configuration.")
+        return {agent_name: f"Error: Agent not found"}
+
+    prompt_data = {"user_prompt": user_prompt}
+    response = await invoke_agent_generic(agent, config, prompt_data, logs)
+    return {agent_name: response}
 
 
 async def invoke_aggregator(aggregator, config, combined_responses, logs):
     """
     Invokes the aggregator agent with the combined responses from all agents.
-    Sends a request to the aggregator's endpoint and returns the response.
     """
-    try:
-        # Prepare aggregator prompt
-        if "prompt" in aggregator:
-            aggregator_prompt = aggregator["prompt"].format(combined_responses=combined_responses)
-        else:
-            with open(aggregator["prompt_file"], "r") as file:
-                prompt_template = file.read()
-                aggregator_prompt = prompt_template.format(combined_responses=combined_responses)
-
-        payload = {
-            "model": aggregator.get("model", config["default_model"]),
-            "prompt": aggregator_prompt,
-            "stream": config.get("stream", False),
-            "format": aggregator.get("output_format", config["default_output_format"])
-        }
-
-        async with httpx.AsyncClient() as client:
-            response = await client.post(f"{config['url']}/api/generate", json=payload)
-            response.raise_for_status()
-            aggregator_response = response.json().get("response", "")
-
-        log_message(logs, f"Aggregator response: {aggregator_response}")
-        return aggregator_response
-
-    except httpx.RequestError as e:
-        log_message(logs, f"HTTP request error while invoking aggregator: {e}")
-    except Exception as e:
-        log_message(logs, f"Unexpected error during aggregator invocation: {e}")
+    prompt_data = {"combined_responses": combined_responses}
+    return await invoke_agent_generic(aggregator, config, prompt_data, logs)
 
 
 @mcp.tool()
