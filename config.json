@@ -1,0 +1,55 @@
+{
+    "default_model": "deepseek-r1:14b",
+    "url": "http://localhost:11434",
+    "default_output_format": {
+        "type": "object",
+        "properties": {
+            "response": {
+                "type": "string"
+            }
+        },
+        "required": [
+            "response"
+        ]
+    },
+    "verbose": true,
+    "agents": [
+        {
+            "name": "orchestrator",
+            "description": "This is the first agent that gets invoked in the workflow.",
+            "model": "deepseek-r1:14b",
+            "prompt_file": "prompt.txt",
+            "output_format": {
+                "type": "object",
+                "properties": {
+                    "agents": {
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "agents"
+                ]
+            }
+        },
+        {
+            "name": "country",
+            "description": "This agent is responsible for identifying the country based on the user prompt.",
+            "prompt": "You are an agent that identifies the country based on the user prompt. User prompt: {user_prompt}"
+        },
+        {
+            "name": "flag",
+            "description": "This agent is responsible for identifying the country's flag based on the user prompt.",
+            "prompt": "You are an agent that identifies the country's flag based on the user prompt. User prompt: {user_prompt}"
+        },
+        {
+            "name": "language",
+            "description": "This agent is responsible for identifying the country's language based on the user prompt.",
+            "prompt": "You are an agent that identifies the country's language based on the user prompt. User prompt: {user_prompt}"
+        },
+        {
+            "name": "aggregator",
+            "description": "This is the last agent that gets invoked in the workflow. It aggregates the results from all the other agents.",
+            "prompt": "You are an agent that aggregates the results from all the other agents. Combined agent responses: {combined_responses}"
+        }
+    ]
+}
