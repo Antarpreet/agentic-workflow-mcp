@@ -144,6 +144,16 @@ There is also a `prompt.txt` file, which contains the prompt for the `Orchestrat
 
 Test Prompt: `Use MCP tools to start workflow to confirm whether France is real or not`
 
+## Troubleshooting
+
+- If the MCP server is not making any requests to the LLM server, do the following:
+
+    1. Restart the MCP server in the `settings.json` file.
+    2. Create a new chat in GitHub Copilot.
+    3. Sometimes the Ollama server doesn't respond if not used for a while. In that case, open the ollama url (`http://localhost:11434`) in a browser. You should see the message `Ollama is running`. If you don't see this message, restart the Ollama server using the command `ollama run deepseek-r1:14b`.
+
+- For seeing the internal logs, you can set the `verbose` key in the `config.json` file to `true`. This will include all the logs in the response. You can see these by expanding the `start_workflow` tool in the Copilot chat window.
+
 ## TODO
 
 - Add support for multi-modality using local LLM servers.
