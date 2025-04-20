@@ -77,6 +77,19 @@ This has been tested for `VS Code`.
 
     - Adjust the default config in `config.json` as needed. The config settings are detailed further below.
     - Copy the `config.json`, `prompt.txt`, and `server.py` files to your user folder. (`C:\Users\<username>\config.json` on Windows or `~/config.json` on Linux/MacOS).
+
+    Windows:
+
+    ```cmd
+        for %f in (config.json,prompt.txt,server.py) do xcopy %f %homedrive%%homepath%
+    ```
+
+    Mac/Linux:
+
+    ```bash
+        cp {config.json,prompt.txt,server.py} ~
+    ```
+
     - Anytime you make any changes to these files, copy them to the user folder again and restart the MCP server in the `settings.json` file for the changes to take effect.
 
 6. Start the MCP server:
