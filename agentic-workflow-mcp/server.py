@@ -7,7 +7,7 @@ from datetime import datetime
 mcp = FastMCP("Local Agentic Workflow MCP Server")
 
 
-def log_message(logs, message, log_file="logs.txt"):
+def log_message(logs, message, log_file="agentic-workflow-mcp/logs.txt"):
     """
     Logs a message with a timestamp to the logs list and writes it to a log file.
     """
@@ -129,7 +129,7 @@ async def start_workflow(user_prompt) -> dict:
 
     try:
         # Load configuration and extract agents
-        config = await get_config("config.json")
+        config = await get_config("agentic-workflow-mcp/config.json")
         agents_list = await get_agents(config)
 
         # Identify orchestrator and aggregator agents

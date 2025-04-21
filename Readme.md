@@ -46,7 +46,7 @@ This has been tested for `VS Code`.
     - Enter the command to start the MCP server.
 
     ```bash
-    python -m uv run mcp run server.py
+    python -m uv run mcp run agentic-workflow-mcp/server.py
     ```
 
     - Name the server: `Agentic Workflow`.
@@ -66,7 +66,7 @@ This has been tested for `VS Code`.
                     "run",
                     "mcp",
                     "run",
-                    "server.py"
+                    "agentic-workflow-mcp/server.py"
                 ]
             }
         }
@@ -76,19 +76,19 @@ This has been tested for `VS Code`.
 5. Add Config for the MCP Server as follows:
 
     - Adjust the default config in `config.json` as needed. The config settings are detailed further below.
-    - Copy the `config.json`, `prompt.txt`, and `server.py` files to your user folder. (`C:\Users\<username>\config.json` on Windows or `~/config.json` on Linux/MacOS).
+    - Copy the server folder to the user folder. (`C:\Users\<username>\agentic-workflow-mcp` on Windows or `~/agentic-workflow-mcp` on Linux/MacOS).
 
-    Windows:
+        Windows:
 
-    ```cmd
-        for %f in (config.json,prompt.txt,server.py) do xcopy %f %homedrive%%homepath%
-    ```
+        ```cmd
+        xcopy /E /I agentic-workflow-mcp %homedrive%%homepath%\agentic-workflow-mcp
+        ```
 
-    Mac/Linux:
+        Mac/Linux:
 
-    ```bash
-        cp {config.json,prompt.txt,server.py} ~
-    ```
+        ```bash
+        cp -r agentic-workflow-mcp ~/agentic-workflow-mcp
+        ```
 
     - Anytime you make any changes to these files, copy them to the user folder again and restart the MCP server in the `settings.json` file for the changes to take effect.
 
@@ -127,7 +127,7 @@ This has been tested for `VS Code`.
 | `description` | string | The description of the agent. | `true` | `This agent is responsible for orchestrating the workflow and calling the other agents as needed, depending on the user prompt.` |
 | `model` | string | The model to use for the agent. | `false` | `deepseek-r1:14b` |
 | `prompt` | string | The prompt to use for the agent. This takes precedence over `prompt_file`. | `true` | `You are an agent that is responsible for orchestrating the workflow and calling the other agents as needed, depending on the user prompt. You will call the other agents in parallel and wait for their responses before proceeding to the next step. You will also call the Aggregator Agent in the end to aggregate the results from the other agents and return the final result to Github Copilot.` |
-| `prompt_file` | string | The absolute path to the prompt file. | `false` | `""` |
+| `prompt_file` | string | Either the absolute path to the prompt file or path to the prompt file in the format `agentic-workflow-mcp/YOUR_PROMPT_FILE_NAME` if the prompt file is added to the `agentic-workflow-mcp` in this repo. | `false` | `""` |
 | `output_format` | object | The output format for the agent. | `false` | `{"type": "object", "properties": {"response": {"type": "string"}}, "required": ["response"]}` |
 
 ## Tools

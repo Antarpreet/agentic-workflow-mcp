@@ -12,13 +12,13 @@
             "response"
         ]
     },
-    "verbose": false,
+    "verbose": true,
     "agents": [
         {
             "name": "orchestrator",
             "description": "This is the first agent that gets invoked in the workflow.",
             "model": "deepseek-r1:14b",
-            "prompt_file": "prompt.txt",
+            "prompt_file": "agentic-workflow-mcp/prompt.txt",
             "output_format": {
                 "type": "object",
                 "properties": {
