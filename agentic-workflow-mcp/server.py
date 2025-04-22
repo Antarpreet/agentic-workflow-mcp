@@ -62,7 +62,9 @@ async def invoke_agent_generic(agent, config, prompt_data, logs):
             "format": agent.get("output_format", config["default_output_format"])
         }
 
-        async with httpx.AsyncClient() as client:
+        # Set a longer read timeout (e.g., 30 seconds)
+        timeout = httpx.Timeout(timeout=10.0, read=30.0)
+        async with httpx.AsyncClient(timeout=timeout) as client:
             response = await client.post(f"{config['url']}/api/generate", json=payload)
             response.raise_for_status()
             agent_response = response.json().get("response", "")
@@ -71,7 +73,7 @@ async def invoke_agent_generic(agent, config, prompt_data, logs):
         return agent_response
 
     except httpx.RequestError as e:
-        log_message(logs, f"HTTP request error while invoking {agent['name']}: {e}")
+        log_message(logs, f"HTTP request error while invoking {agent['name']}: {e} - {repr(e)}")
         return f"Error: {e}"
     except Exception as e:
         log_message(logs, f"Unexpected error while invoking {agent['name']}: {e}")
