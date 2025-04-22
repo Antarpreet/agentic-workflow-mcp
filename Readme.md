@@ -152,10 +152,11 @@ Test Prompt: `Use MCP tools to start workflow to confirm whether France is real 
     1. Restart VS Code as a sanity check.
     2. Sometimes the Ollama server doesn't respond if it hasn't been used for a while. In that case, open the ollama URL (`http://localhost:11434`) in a browser. You should see the message `Ollama is running`. If you don't see this message, restart the Ollama server using the command `ollama run deepseek-r1:14b`.
     3. Copy the server files again using the commands above, another sanity check.
-    4. Restart the MCP server in the `settings.json` file.
-    5. Create a new chat in GitHub Copilot.
+    4. If your request to the local LLM is failing or taking too long, it might be a good idea to increase the read timeout in the `server.py` file.
+    5. Restart the MCP server in the `settings.json` file.
+    6. Create a new chat in GitHub Copilot.
 
-- For seeing the internal logs, you can set the `verbose` key in the `config.json` file to `true`. This will include all the logs in the response. You can see these by expanding the `start_workflow` tool in the Copilot chat window.
+- To see the internal logs, you can set the `verbose` key in the `config.json` file to `true`. This will include all the logs in the response. You can see these by expanding the `start_workflow` tool in the Copilot chat window.
 
 ## TODO
 
