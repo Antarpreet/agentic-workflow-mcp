@@ -87,6 +87,7 @@ This has been tested for `VS Code`.
         Mac/Linux:
 
         ```bash
+        rm -rf ~/agentic-workflow-mcp
         cp -r agentic-workflow-mcp ~/agentic-workflow-mcp
         ```
 
