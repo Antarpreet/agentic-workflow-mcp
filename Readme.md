@@ -3,7 +3,7 @@
 This MCP server allows you to run the Agentic Workflows using a local LLM server using Ollama CLI. The workflow is designed as follows:
 
 1. `Orchestrator Agent`: This agent is the first to be called. It is responsible for orchestrating the workflow and calling the other agents as needed, depending on the user prompt.
-2. `Other Agents`: The orchestrator agent calls these agents to perform specific tasks. The Orchestrator Agent calls these agents in parallel and waits for their responses before proceeding to the next step.
+2. `Worker Agents`: The orchestrator agent calls these agents to perform specific tasks. The Orchestrator Agent calls these agents in parallel and waits for their responses before proceeding to the next step.
 3. `Aggregator Agent`: This agent is called at last to aggregate the results from the other agents and return the final result to Github Copilot.
 
 This has been tested for `VS Code`.
