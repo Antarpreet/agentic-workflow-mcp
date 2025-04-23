@@ -157,6 +157,19 @@ Test Prompt: `Use MCP tools to start workflow to confirm whether France is real 
     6. Create a new chat in GitHub Copilot.
 
 - To see the internal logs, you can set the `verbose` key in the `config.json` file to `true`. This will include all the logs in the response. You can see these by expanding the `start_workflow` tool in the Copilot chat window.
+- You can also check the logs using:
+
+    Windows:
+
+    ```cmd
+    type %homedrive%%homepath%\agentic-workflow-mcp\logs.txt
+    ```
+
+    Mac/Linux:
+
+    ```bash
+    tail -f ~/agentic-workflow-mcp/logs.txt
+     ```
 
 ## TODO
 
