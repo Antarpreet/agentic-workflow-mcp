@@ -13,11 +13,22 @@
         ]
     },
     "verbose": true,
+    "parallel": false,
+    "base_path": "REPO_PATH",
+    "excluded_agents": [
+        "orchestrator",
+        "file_extractor",
+        "aggregator"
+    ],
     "agents": [
         {
             "name": "orchestrator",
             "description": "This is the first agent that gets invoked in the workflow.",
             "model": "deepseek-r1:14b",
+            "pass_to_next": true,
+            "agents_to_use": [
+                "file_extractor"
+            ],
             "prompt_file": "agentic-workflow-mcp/prompt.txt",
             "output_format": {
                 "type": "object",
@@ -28,6 +39,29 @@
                 },
                 "required": [
                     "agents"
+                ]
+            }
+        },
+        {
+            "name": "file_extractor",
+            "description": "This agent is responsible for extracting the input and output files paths from the prompt.",
+            "prompt": "You are an agent that identifies the input and output files paths from the user prompt. If there are no files identified, return empty arrays. User prompt: {user_prompt}",
+            "output_format": {
+                "type": "object",
+                "properties": {
+                    "input_files": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "output_file": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "input_files",
+                    "output_file"
                 ]
             }
         },

@@ -1,12 +1,16 @@
 # Local Agentic Workflow MCP Server
 
-This MCP server allows you to run the Agentic Workflows using a local LLM server using Ollama CLI. The workflow is designed as follows:
+This MCP server allows you to run the Agentic Workflows using a local LLM server using Ollama CLI. This has been tested for `VS Code`. The workflows are designed as follows:
+
+## Parallel Agentic Workflow
 
 1. `Orchestrator Agent`: This agent is the first to be called. It is responsible for orchestrating the workflow and calling the other agents as needed, depending on the user prompt.
 2. `Worker Agents`: The orchestrator agent calls these agents to perform specific tasks. The Orchestrator Agent calls these agents in parallel and waits for their responses before proceeding to the next step.
 3. `Aggregator Agent`: This agent is called last to aggregate the results from the other agents and return the final result to Github Copilot.
 
-This has been tested for `VS Code`.
+## Sequential Agentic Workflow
+
+1. All the agents are called sequentially, and the output of one agent is passed as input to the next agent. The final result is returned to Github Copilot. These agents are called in the order they are defined in the config file.
 
 ## Prerequisites
 
@@ -117,6 +121,9 @@ This has been tested for `VS Code`.
 | `default_model` | string | The default model to use for the LLM server. | `true` | `deepseek-r1:14b` |
 | `url` | string | The URL of the Ollama LLM server. | `true` | `http://localhost:11434` |
 | `verbose` | boolean | Whether to enable verbose logging. | `false` | `false` |
+| `parallel` | boolean | Whether to run the agents in parallel or sequentially. | `false` | `true` |
+| `base_path` | string | The absolute base path for your repo. Required if you are using `file_extractor` agent. | `false` | `""` |
+| `excluded_agents` | string[] | The agents to exclude from the workflow. | `false` | `[]` |
 | `default_output_format` | object | The default output format for the LLM server. | `false` | `{"type": "object", "properties": {"response": {"type": "string"}}, "required": ["response"]}` |
 | `agents` | object[] | The agents used in the workflow. | `false` | Agents |
 
@@ -127,17 +134,23 @@ This has been tested for `VS Code`.
 | `name` | string | The name of the agent. | `true` | `Orchestrator Agent` |
 | `description` | string | The description of the agent. | `true` | `This agent is responsible for orchestrating the workflow and calling the other agents as needed, depending on the user prompt.` |
 | `model` | string | The model to use for the agent. | `false` | `deepseek-r1:14b` |
+| `pass_to_next` | boolean | Whether to pass the output of this agent to the next agent. | `false` | `false` |
+| `agents_to_use` | string[] | The agents to use for the current agent before processing the current agent prompt. | `false` | `[]` |
 | `prompt` | string | The prompt to use for the agent. This takes precedence over `prompt_file`. | `true` | `You are an agent that is responsible for orchestrating the workflow and calling the other agents as needed, depending on the user prompt. You will call the other agents in parallel and wait for their responses before proceeding to the next step. You will also call the Aggregator Agent in the end to aggregate the results from the other agents and return the final result to Github Copilot.` |
 | `prompt_file` | string | Either the absolute path to the prompt file or path to the prompt file in the format `agentic-workflow-mcp/YOUR_PROMPT_FILE_NAME` if the prompt file is added to the `agentic-workflow-mcp` in this repo. | `false` | `""` |
 | `output_format` | object | The output format for the agent. | `false` | `{"type": "object", "properties": {"response": {"type": "string"}}, "required": ["response"]}` |
 
-## Tools
+## Custom Embeddings
+
+## Local LLM Tools
+
+## GitHub Copilot Tools
 
 ### `start_workflow`
 
 This tool is used to start the Agentic Workflow. It takes a prompt as input and returns the result of the workflow.
 
-## Example usage
+## Example usage (Parallel Agentic Workflow)
 
 The example configuration contains agents that get information regarding a country. There are three agents besides the `Orchestrator Agent` and `Aggregator Agent`: `Country`, `Flag`, and `Language`. Depending on your prompt, each of them will return their responses, and the combined responses are sent to the `Aggregator Agent`, which will return the final result.
 
