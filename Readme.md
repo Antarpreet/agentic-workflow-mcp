@@ -10,7 +10,7 @@ This MCP server allows you to run the Agentic Workflows using a local LLM server
 
 ## Sequential Agentic Workflow
 
-1. All the agents are called sequentially, and the output of one agent is passed as input to the next agent. The final result is returned to Github Copilot. These agents are called in the order they are defined in the config file.
+1. All the agents are called sequentially, and the output of one agent is passed as input to the next agent (which is configurable). The final result is returned to Github Copilot. These agents are called in the order they are defined in the config file under `agents_sequence`.
 
 ## Prerequisites
 
