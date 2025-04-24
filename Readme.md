@@ -122,8 +122,10 @@ This MCP server allows you to run the Agentic Workflows using a local LLM server
 | `url` | string | The URL of the Ollama LLM server. | `true` | `http://localhost:11434` |
 | `verbose` | boolean | Whether to enable verbose logging. | `false` | `false` |
 | `parallel` | boolean | Whether to run the agents in parallel or sequentially. | `false` | `true` |
-| `base_path` | string | The absolute base path for your repo. Required if you are using `file_extractor` agent. | `false` | `""` |
+| `base_path` | string | The absolute base path for your repo where you will be using this MCP Server. Required if you are using `file_extractor` agent. | `false` | `""` |
 | `excluded_agents` | string[] | The agents to exclude from the workflow. | `false` | `[]` |
+| `agents_sequence` | string[] | The sequence of agents to use in the workflow. This is only used if `parallel` is set to `false`. | `false` | `[]` |
+| `default_pass_to_next` | boolean | Whether to pass the output of the agent to the next agent by default. This is only used if `parallel` is set to `false`. | `false` | `true` |
 | `default_output_format` | object | The default output format for the LLM server. | `false` | `{"type": "object", "properties": {"response": {"type": "string"}}, "required": ["response"]}` |
 | `agents` | object[] | The agents used in the workflow. | `false` | Agents |
 

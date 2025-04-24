@@ -17,9 +17,14 @@
     "base_path": "REPO_PATH",
     "excluded_agents": [
         "orchestrator",
-        "file_extractor",
-        "aggregator"
+        "aggregator",
+        "file_extractor"
     ],
+    "agents_sequence": [
+        "orchestrator",
+        "business_model_generator"
+    ],
+    "default_pass_to_next": true,
     "agents": [
         {
             "name": "orchestrator",
@@ -44,8 +49,8 @@
         },
         {
             "name": "file_extractor",
-            "description": "This agent is responsible for extracting the input and output files paths from the prompt.",
-            "prompt": "You are an agent that identifies the input and output files paths from the user prompt. If there are no files identified, return empty arrays. User prompt: {user_prompt}",
+            "description": "This agent is responsible for extracting input file paths and one output file path from the prompt.",
+            "prompt": "You are an agent that identifies input file paths (usually multiple) and one output file path from the user prompt. Return the relative paths. If no files are identified, return empty arrays or null for output_file. User prompt: {user_prompt}",
             "output_format": {
                 "type": "object",
                 "properties": {
@@ -53,10 +58,12 @@
                         "type": "array",
                         "items": {
                             "type": "string"
-                        }
+                        },
+                        "description": "List of relative paths for input files mentioned in the prompt."
                     },
                     "output_file": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Relative path for the single output file mentioned in the prompt."
                     }
                 },
                 "required": [
