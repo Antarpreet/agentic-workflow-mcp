@@ -1,0 +1,39 @@
+{
+    "default_model": "gemma3:12b",
+    "default_temperature": 0.0,
+    "agents": [
+        {
+            "name": "Researcher",
+            "prompt": "Search for the latest news headlines about renewable energy.",
+            "tools": []
+        },
+        {
+            "name": "Summarizer",
+            "prompt": "Summarize the key points from the news headlines provided.",
+            "tools": []
+        },
+        {
+            "name": "Emailer",
+            "prompt": "Draft an email to the team sharing the summarized news about renewable energy.",
+            "tools": []
+        }
+    ],
+    "edges": [
+        {
+            "source": "__start__",
+            "target": "Researcher"
+        },
+        {
+            "source": "Researcher",
+            "target": "Summarizer"
+        },
+        {
+            "source": "Summarizer",
+            "target": "Emailer"
+        },
+        {
+            "source": "Emailer",
+            "target": "__end__"
+        }
+    ]
+}

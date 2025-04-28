@@ -1,368 +1,206 @@
-import asyncio
-from mcp.server.fastmcp import FastMCP
-import httpx
-import json
-from datetime import datetime
 import os
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+from typing import List, Union
 
-mcp = FastMCP("Local Agentic Workflow MCP Server")
+from chromadb import Client
+from chromadb.config import Settings
+from langchain.chains import RetrievalQA
+from langchain_community.embeddings import OllamaEmbeddings
+from langchain_community.vectorstores import Chroma
+from langchain_ollama import ChatOllama
+from mcp.server.fastmcp import FastMCP
 
+from core.embedding import update_embeddings
+from core.graph import generate_graph_from_workflow
+from core.log import log_message
+from core.model import DEFAULT_WORKFLOW_CONFIG, AppContext, WorkflowConfig
+from core.util import load_workflow_config
 
-def log_message(logs, message, log_file="agentic-workflow-mcp/logs.txt"):
+@asynccontextmanager
+async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     """
-    Logs a message with a timestamp to the logs list and writes it to a log file.
+    Lifespan context manager for the FastMCP server.
+    Initializes and yields application resources.
+
+    Args:
+        server (FastMCP): The FastMCP server instance.
+
+    Returns:
+        AsyncIterator[AppContext]: Yields the application context with initialized resources.
     """
-    timestamped_message = f"{datetime.now().isoformat()} - {message}"
-    logs.append(timestamped_message)
-    with open(log_file, "a") as file:
-        file.write(timestamped_message + "\n")
+    # Load the workflow configuration
+    workflow_config: WorkflowConfig = load_workflow_config(os.getenv("WORKFLOW_CONFIG_PATH"))
+
+    embedding_model_name = workflow_config.get("embedding_model", DEFAULT_WORKFLOW_CONFIG["embedding_model"])
+    default_model_name = workflow_config.get("default_model", DEFAULT_WORKFLOW_CONFIG["default_model"])
+    default_temperature = workflow_config.get("default_temperature", DEFAULT_WORKFLOW_CONFIG["default_temperature"])
+    collection_name = workflow_config.get("collection_name", DEFAULT_WORKFLOW_CONFIG["collection_name"])
+
+    log_message([], f"embedding_model_name: {embedding_model_name}")
+    log_message([], f"default_model_name: {default_model_name}")
+    log_message([], f"default_temperature: {default_temperature}")
+    log_message([], f"collection_name: {collection_name}")
+    log_message([], f"workspace_path: {os.getenv('WORKSPACE_PATH')}")
+
+    # Initialize Ollama embeddings
+    embedding_model = OllamaEmbeddings(model=embedding_model_name)
+
+    # Initialize ChromaDB client
+    persist_directory = "./chroma_db"
+    chroma_client = Client(Settings(
+        persist_directory=persist_directory,
+        anonymized_telemetry=False
+    ))
+
+    # Initialize Chroma as a LangChain vectorstore using Ollama embeddings
+    vectorstore = Chroma(
+        client=chroma_client,
+        collection_name=collection_name,
+        embedding_function=embedding_model,
+        persist_directory=persist_directory # Ensure persistence
+    )
+
+    # Initialize Ollama LLM
+    llm = ChatOllama(model=default_model_name, temperature=default_temperature)
+
+    # Set up a Retriever
+    retriever = vectorstore.as_retriever()
+
+    # Set up a RetrievalQA chain
+    qa_chain = RetrievalQA.from_chain_type(
+        llm=llm, # Pass the initialized LLM
+        retriever=retriever,
+        chain_type="stuff"
+    )
+
+    # Yield the context with all initialized resources
+    yield AppContext(
+        server=server,
+        embedding_model=embedding_model,
+        chroma_client=chroma_client,
+        vectorstore=vectorstore,
+        llm=llm,
+        retriever=retriever,
+        qa_chain=qa_chain,
+        workflow_config=workflow_config
+    )
+    # Teardown code here (if needed, e.g., explicitly stopping services)
+    # chroma_client.persist() # Chroma client might persist automatically depending on config
 
 
-async def get_agents(config, excluded_agents=[]):
+mcp = FastMCP("Local Agentic Workflow MCP Server", lifespan=app_lifespan)
+
+
+@mcp.resource("resource://agentic-workflow-mcp/agents")
+def get_agents() -> list:
     """
-    Extracts and returns a list of available agents' names and descriptions 
-    from the configuration, excluding 'aggregator' and 'orchestrator' agents.
+    Returns the list of agents defined in the workflow configuration.
+
+    Args:
+        ctx (Context): The MCP context containing application resources.
+
+    Returns:
+        list: List of agent dictionaries with name and description.
     """
-    return [
-        f"{agent['name']}: {agent['description']}"
-        for agent in config.get("agents", [])
-        if agent["name"] not in excluded_agents
-    ]
-
-
-async def get_config(file_path):
-    """
-    Reads and returns the configuration from the specified JSON file.
-    """
-    try:
-        with open(file_path, "r") as file:
-            return json.load(file)
-    except (FileNotFoundError, json.JSONDecodeError) as e:
-        raise ValueError(f"Error reading config file {file_path}: {e}")
-
-
-async def invoke_agent_generic(agent, config, prompt_data, logs):
-    """
-    Generic function to invoke an agent (orchestrator, regular agent, or aggregator).
-    Sends a request to the agent's endpoint and returns the response.
-    """
-    try:
-        # Prepare agent prompt
-        if "prompt" in agent:
-            agent_prompt = agent["prompt"].format(**prompt_data)
-        else:
-            with open(agent["prompt_file"], "r") as file:
-                prompt_template = file.read()
-                agent_prompt = prompt_template.format(**prompt_data)
-
-        payload = {
-            "model": agent.get("model", config["default_model"]),
-            "prompt": agent_prompt,
-            "stream": config.get("stream", False),
-            "format": agent.get("output_format", config["default_output_format"])
-        }
-
-        # Set a longer read timeout (e.g., 120 seconds)
-        timeout = httpx.Timeout(timeout=120.0, read=120.0)
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            response = await client.post(f"{config['url']}/api/generate", json=payload)
-            response.raise_for_status()
-            agent_response = response.json().get("response", "")
-
-        log_message(logs, f"{agent['name']} response: {agent_response}")
-        return agent_response
-
-    except httpx.RequestError as e:
-        log_message(logs, f"HTTP request error while invoking {agent['name']}: {e} - {repr(e)}")
-        return f"Error: {e}"
-    except Exception as e:
-        log_message(logs, f"Unexpected error while invoking {agent['name']}: {e} - {repr(e)}")
-        return f"Error: {e}"
-
-
-async def invoke_orchestrator(orchestrator, config, user_prompt, agents_list, logs):
-    """
-    Invokes the orchestrator agent with the user prompt and list of agents.
-    """
-    prompt_data = {
-        "agents_list": ", ".join(agents_list),
-        "user_prompt": user_prompt
-    }
-    return json.loads(await invoke_agent_generic(orchestrator, config, prompt_data, logs))
-
-
-async def invoke_agent(agent_name, config, user_prompt, logs, agents_list=[]):
-    """
-    Invokes a single agent with the given user prompt.
-    """
-    agent = next((agent for agent in config["agents"] if agent["name"] == agent_name), None)
-    if not agent:
-        log_message(logs, f"Agent {agent_name} not found in configuration.")
-        return {agent_name: f"Error: Agent not found"}
-
-    prompt_data = {
-        "agents_list": ", ".join(agents_list),
-        "user_prompt": user_prompt
-        }
-    response = await invoke_agent_generic(agent, config, prompt_data, logs)
-    return {agent_name: response}
-
-
-async def invoke_aggregator(aggregator, config, combined_responses, logs):
-    """
-    Invokes the aggregator agent with the combined responses from all agents.
-    """
-    prompt_data = {"combined_responses": combined_responses}
-    return await invoke_agent_generic(aggregator, config, prompt_data, logs)
-
-
-async def handle_system_agents(agent_name, config, user_prompt, logs, agents_list=[]):
-    file_extractor_response = {}
-    input_files = []
-    input_data = {}
-
-    if agent_name == "file_extractor":
-        # Special case for file_extractor, which needs a different prompt
-        prompt_data = {
-            **prompt_data,
-            "user_prompt": user_prompt
-            }
-        file_extractor_agent_response = await invoke_agent(agent_name, config, prompt_data, logs, agents_list)
-        file_extractor_response = file_extractor_agent_response.get(agent_name, {})
-        log_message(logs, f"File extractor response: {file_extractor_response}")
-
-        if (isinstance(file_extractor_response, str)):
-            # convert string to JSON
-            try:
-                file_extractor_response = json.loads(file_extractor_response)
-            except json.JSONDecodeError as e:
-                log_message(logs, f"File extractor response is not valid JSON: {file_extractor_response} - Error: {e}")
-                raise ValueError(f"File extractor response could not be parsed as JSON: {e}")
-        
-        # Check if there are any input_files to process from the file_extractor response
-        if isinstance(file_extractor_response, dict) and "input_files" in file_extractor_response:
-            input_files = file_extractor_response.get("input_files", [])
-            output_file = file_extractor_response.get("output_file", None)
-            log_message(logs, f"Input files extracted: {input_files}")
-            # Check if base_path is provided in the config
-            if not "base_path" in config:
-                raise ValueError("Base path not found in configuration for file extraction.")
-            # Ensure input_files is a list
-            if isinstance(input_files, str):
-                input_files = [input_files]
-            # Prepare absolute paths for input files combining config["base_path"] and input_files
-            input_files = [f"{config['base_path']}/{file}" for file in input_files]
-            output_file = f"{config['base_path']}/{output_file}" if output_file else None
-            log_message(logs, f"Input files with base path: {input_files}")
-            # Read all the input files and prepare the prompt data
-            for input_file in input_files:
-                try:
-                    with open(input_file, "r") as file:
-                        file_content = file.read()
-                        input_data[input_file] = file_content
-                        log_message(logs, f"Read input file: {input_file}")
-                except FileNotFoundError:
-                    log_message(logs, f"Input file not found: {input_file}")
-                    continue
-                except Exception as e:
-                    log_message(logs, f"Error reading input file {input_file}: {e}")
-                    continue
-            # Prepare the prompt data for the current agent
-            prompt_data = {
-                **prompt_data,
-                "user_prompt": user_prompt,
-                "input_data": input_data
-            }
-        else:
-            log_message(logs, "No input files found in file_extractor response.")
-            input_files = []
-        
-        return file_extractor_response, input_files, output_file, prompt_data
-
-
-async def parallel_execute(aggregator, orchestrator, config, user_prompt, agents_list, logs):
-    # --- Parallel Flow ---
-    log_message(logs, "Starting parallel workflow execution.")
-    if not aggregator:
-        raise ValueError("Aggregator agent is required for parallel execution.")
-
-    # Invoke orchestrator to decide which agents to run
-    orchestrator_response_raw = await invoke_orchestrator(orchestrator, config, user_prompt, agents_list, logs)
-
-    # Parse orchestrator response (expecting JSON like {"agents": ["agent1", "agent2"]})
-    try:
-        # invoke_orchestrator already tries json.loads, but let's be safe
-        if isinstance(orchestrator_response_raw, str):
-            orchestrator_response_data = json.loads(orchestrator_response_raw)
-        elif isinstance(orchestrator_response_raw, dict):
-            orchestrator_response_data = orchestrator_response_raw
-        else:
-            raise ValueError(f"Unexpected orchestrator response type: {type(orchestrator_response_raw)}")
-    except json.JSONDecodeError as e:
-        log_message(logs, f"Orchestrator response is not valid JSON: {orchestrator_response_raw} - Error: {e}")
-        raise ValueError(f"Orchestrator response could not be parsed as JSON: {e}")
-    except ValueError as e:
-        log_message(logs, f"Error processing orchestrator response: {e}")
-        raise e
-
-    agents_to_invoke = orchestrator_response_data.get("agents", [])
-    log_message(logs, f"Orchestrator selected agents: {agents_to_invoke}")
-
-    if not agents_to_invoke:
-        log_message(logs, "Orchestrator did not select any agents to invoke.")
-        # Return the raw orchestrator response or a specific message
-        return f"Orchestrator did not select any agents. Raw response: {orchestrator_response_raw}"
-    else:
-        # Invoke selected agents in parallel
-        agent_tasks = [invoke_agent(agent_name, config, user_prompt, logs, agents_list) for agent_name in agents_to_invoke]
-        agent_responses = await asyncio.gather(*agent_tasks)
-
-    # Combine responses for the aggregator
-    combined_responses_dict = {k: v for response in agent_responses for k, v in response.items()}
-    # Format combined_responses for the aggregator prompt (e.g., as a JSON string)
-    combined_responses_str = json.dumps(combined_responses_dict)
-    log_message(logs, f"Combined agent responses: {combined_responses_str}")
-
-    # Invoke aggregator
-    return await invoke_aggregator(aggregator, config, combined_responses_str, logs)
-
-
-async def sequential_execute(config, user_prompt, agents_list, logs):
-    # --- Sequential Flow ---
-    log_message(logs, "Starting sequential workflow execution.")
-    # Define the sequence: orchestrator first, then others (excluding aggregator)
-    agent_sequence = config.get("agents_sequence", [])
-    if not agent_sequence:
-        # Default to all agents except orchestrator and aggregator
-        agent_sequence = [agent for agent in config["agents"] if agent["name"] not in ["orchestrator", "aggregator"]]
-    # replace agent names with agents
-    agent_sequence = [next((agent for agent in config["agents"] if agent["name"] == name), None) for name in agent_sequence]
-    log_message(logs, f"Sequential agent execution order: {[agent['name'] for agent in agent_sequence]}")
-
-    current_input_data = user_prompt # Initial input for the first agent
-    final_response = "No agents executed in sequence." # Default if sequence is empty
-
-    for i, agent in enumerate(agent_sequence):
-        log_message(logs, f"Invoking agent {i+1}/{len(agent_sequence)}: {agent['name']}")
-
-        prompt_data = {
-            "agents_list": ", ".join(agents_list)
-        }
-        output_file = None
-        agents_to_use = agent.get("agents_to_use", [])
-        if agents_to_use:
-            # Filter agents based on the orchestrator's response
-            agents_to_use = [agent for agent in agents_to_use]
-            log_message(logs, f"Agents to use for {agent['name']}: {agents_to_use}")   
-            # Invoke the agents_to_use if specified
-            for agent_name in agents_to_use:
-                prompt_data = await handle_system_agents(agent_name, config, user_prompt, logs, agents_list)
-
-        # Prepare prompt data based on position in sequence
-        # First agent gets user_prompt, subsequent agents get user_prompt and previous_response
-        if i == 0: # First agent (orchestrator)
-            # In sequential mode, orchestrator just processes the prompt, doesn't need agents_list
-            prompt_data = {
-                **prompt_data,
-                "user_prompt": user_prompt
-                }
-        elif config.get("default_pass_to_next", agent.get("pass_to_next", True)):
-            # Subsequent agents receive the original user_prompt and the previous agent's response if pass_to_next is True
-            prompt_data = {
-                **prompt_data,
-                "user_prompt": user_prompt,
-                "previous_response": current_input_data
-                }
-        else:
-            # If pass_to_next is False, only send the user_prompt
-            prompt_data = {
-                **prompt_data,
-                "user_prompt": user_prompt
-                }
-
-        # Invoke the current agent
-        # Ensure prompt templates are designed to handle the keys in prompt_data
-        current_response = await invoke_agent_generic(agent, config, prompt_data, logs)
-        
-        # Check for errors from invoke_agent_generic
-        if isinstance(current_response, str) and current_response.startswith("Error:"):
-            log_message(logs, f"Error invoking agent {agent['name']}. Stopping sequence.")
-            final_response = current_response # Propagate the error
-            break # Stop the sequence on error
-
-        if output_file:
-            # If output_file is specified, save the response to the file
-            try:
-                # Ensure the directory exists before writing the file
-                output_dir = os.path.dirname(output_file)
-                if output_dir: # Ensure there's a directory part
-                    os.makedirs(output_dir, exist_ok=True)
-                    log_message(logs, f"Ensured directory exists: {output_dir}")
-
-                # Write (or overwrite) the file
-                with open(output_file, "w") as file:
-                    file.write(current_response)
-                    log_message(logs, f"Response saved to {output_file}")
-            except Exception as e:
-                log_message(logs, f"Error saving response to {output_file}: {e}")
-
-
-    current_input_data = current_response # Output of current becomes input for next step's previous_response
-    final_response = current_response # Keep track of the last successful response
-
-    # The final result is the response from the last agent in the sequence
-    return final_response
+    ctx = mcp.get_context()
+    workflow_config: WorkflowConfig = ctx.request_context.lifespan_context.workflow_config
+    agents = workflow_config.get("agents", [])
+    return [{"name": agent["name"], "description": agent.get("description", "")} for agent in agents]
 
 
 @mcp.tool()
-async def start_workflow(user_prompt) -> dict:
+def display_graph() -> str:
     """
-    Processes the workflow based on user_prompt:
-    - Retrieves the list of agents from the config file.
-    - Identifies the orchestrator and aggregator agents.
-    - Invokes the orchestrator with the user prompt and agents list.
-    - Invoke all agents from the orchestrator's response in parallel.
-    - Collects the results from each agent.
-    - Aggregates the results using the aggregator agent.
-    - Returns the final result.
+    Generates a graph image from the workflow configuration and saves it to a file.
+    The graph is generated using the LangGraph library and saved as a PNG image.
+
+    Args:
+        ctx (Context): The MCP context containing application resources.
+
+    Returns:
+        str: Path to the generated graph image file.
     """
     logs = []
-    result = {}
-    excluded_agents = []
-    agents_list = []
-    log_message(logs, f"Received user prompt: {user_prompt}")
+    output_path = None
+    ctx = mcp.get_context()
+    workflow_config: WorkflowConfig = ctx.request_context.lifespan_context.workflow_config
+    
+    try:
+        # Generate the graph from the workflow configuration
+        graph = generate_graph_from_workflow(workflow_config, logs, ctx)
+    except Exception as e:
+        log_message(logs, f"Error generating graph: {str(e)} {repr(e)}")
+        return
 
     try:
-        # Load configuration and extract agents
-        config = await get_config("agentic-workflow-mcp/config.json")
-        excluded_agents.extend(config.get("parallel_excluded_agents", []))
-        log_message(logs, f"Excluded agents: {excluded_agents}")
-        agents_list = await get_agents(config, excluded_agents=excluded_agents)
-
-        # Identify orchestrator and aggregator agents
-        orchestrator = next((agent for agent in config["agents"] if agent["name"] == "orchestrator"), None)
-        aggregator = next((agent for agent in config["agents"] if agent["name"] == "aggregator"), None)
-
-        if not orchestrator:
-            raise ValueError("Orchestrator agent not found in configuration.")
-
-        # Check config for parallel execution (default to True if not specified)
-        if config.get("parallel", True):
-            final_response = await parallel_execute(aggregator, orchestrator, config, user_prompt, agents_list, logs)
-        else:
-            final_response = await sequential_execute(config, user_prompt, agents_list, logs)
-
-        result = {
-            "response": final_response
-        }
-
-    except (ValueError, KeyError) as e:
-        log_message(logs, f"Configuration error: {e}")
-    except httpx.RequestError as e:
-        log_message(logs, f"HTTP request error: {e}")
+        # Generate the PNG image bytes
+        image_bytes = graph.get_graph().draw_mermaid_png()
+        # Define the output file path
+        output_path = os.getenv("WORKSPACE_PATH", ".") + "/graph.png"
+        # Write the image bytes to a local file
+        with open(output_path, "wb") as f:
+            f.write(image_bytes)
+        log_message(logs, f"Graph image successfully saved to {output_path}")
+        
     except Exception as e:
-        log_message(logs, f"Unexpected error: {e}")
-    finally:
-        if config.get("verbose", False):
-            result["logs"] = logs
-        return result
+        log_message(logs, f"Error generating or saving graph image: {str(e)}")
+
+    return output_path
+
+
+@mcp.tool()
+def start_workflow(user_prompt: str) -> dict:
+    """
+    Starts a LangGraph workflow to process the user prompt.
+    The workflow is defined in a config file existing in the workspace.
+    The relative path to the config file is defined in the environment variable WORKFLOW_CONFIG_PATH in .env file in the workspace.
+
+    Args:
+        user_prompt (str): The user prompt to process.
+        ctx (Context): The MCP context containing application resources.
+
+    Returns:
+        dict: The response from the workflow execution.
+    """
+    logs = []
+    ctx = mcp.get_context()
+    log_message(logs, f"Starting workflow with user prompt: {user_prompt}")
+    workflow_config: WorkflowConfig = ctx.request_context.lifespan_context.workflow_config
+
+    try:
+        # Generate the graph from the workflow configuration
+        graph = generate_graph_from_workflow(workflow_config, logs, ctx)
+
+        # Execute the graph with the user prompt
+        response = graph.invoke({"input": user_prompt})
+    except Exception as e:
+        log_message(logs, f"Error running workflow: {str(e)} {repr(e)}")
+        response = {"logs": logs}
+
+    return response
+
+
+@mcp.tool()
+def embed_files(file_paths: Union[str, List[str]]) -> dict:
+    """
+    Tool to create embeddings for one or more files and store them in the ChromaDB.
+    
+    Args:
+        file_paths: Path to a file or list of file paths to embed
+        ctx: The MCP context containing application resources
+
+    Returns:
+        dict: Information about the embedding operation
+    """
+    ctx = mcp.get_context()
+    workflow_config: WorkflowConfig = ctx.request_context.lifespan_context.workflow_config
+    collection_name = workflow_config.get("collection_name", DEFAULT_WORKFLOW_CONFIG["collection_name"])
+    delete_missing_embeddings = workflow_config.get("delete_missing_embeddings", DEFAULT_WORKFLOW_CONFIG["delete_missing_embeddings"])
+    # Call the update_embeddings function to create or update embeddings
+    return update_embeddings(
+        file_paths=file_paths, 
+        ctx=ctx, 
+        collection_name=collection_name, 
+        delete_missing=delete_missing_embeddings
+    )

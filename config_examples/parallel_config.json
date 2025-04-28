@@ -1,0 +1,57 @@
+{
+    "default_model": "gemma3:12b",
+    "default_temperature": 0.0,
+    "state_schema": {
+        "type": "object",
+        "properties": {
+            "ParallelTask1_output": {
+                "type": "string"
+            },
+            "ParallelTask2_output": {
+                "type": "string"
+            }
+        }
+    },
+    "agents": [
+        {
+            "name": "SplitAgent",
+            "prompt": "You are organizing a team meeting. Split the agenda into two parts: 'Project Updates' and 'Action Items'.",
+            "tools": []
+        },
+        {
+            "name": "ParallelTask1",
+            "prompt": "Summarize the latest project updates from the team.",
+            "tools": []
+        },
+        {
+            "name": "ParallelTask2",
+            "prompt": "List the action items that need to be discussed in the meeting.",
+            "tools": []
+        },
+        {
+            "name": "JoinAgent",
+            "prompt": "Combine the project updates and action items into a single meeting agenda.",
+            "tools": []
+        }
+    ],
+    "edges": [
+        {
+            "source": "__start__",
+            "target": "SplitAgent"
+        },
+        {
+            "source": "JoinAgent",
+            "target": "__end__"
+        }
+    ],
+    "parallel": [
+        {
+            "source": "SplitAgent",
+            "nodes": [
+                "ParallelTask1",
+                "ParallelTask2"
+            ],
+            "join": "JoinAgent"
+        }
+    ]
+}

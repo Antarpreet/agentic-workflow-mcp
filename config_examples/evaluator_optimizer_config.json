@@ -1,0 +1,69 @@
+{
+    "default_model": "llama3.2:3b",
+    "default_temperature": 0.0,
+    "state_schema": {
+        "type": "object",
+        "properties": {
+            "quality_score": {
+                "type": "number"
+            },
+            "quality_threshold": {
+                "type": "number"
+            },
+            "iteration_count": {
+                "type": "integer"
+            }
+        },
+        "required": [
+            "quality_score",
+            "quality_threshold",
+            "iteration_count"
+        ]
+    },
+    "agents": [
+        {
+            "name": "ExecutorAgent",
+            "prompt": "You are an agent that translates English text to French. Given the English text, provide a French translation. Respond with only the final translation.",
+            "tools": []
+        },
+        {
+            "name": "EvaluatorAgent",
+            "prompt": "Evaluate the quality of the French translation. Rate it from 0 (poor) to 1 (perfect).",
+            "tools": [],
+            "output_decision_keys": [
+                "quality_score",
+                "quality_threshold"
+            ],
+            "output_format": {
+                "type": "object",
+                "properties": {
+                    "quality_score": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1
+                    },
+                    "quality_threshold": {
+                        "type": "number",
+                        "default": 0.8
+                    }
+                },
+                "required": [
+                    "quality_score",
+                    "quality_threshold"
+                ]
+            }
+        },
+        {
+            "name": "OptimizerAgent",
+            "prompt": "If the translation quality is below 0.8, suggest improvements to the translation.",
+            "tools": []
+        }
+    ],
+    "evaluator_optimizer": {
+        "executor": "ExecutorAgent",
+        "evaluator": "EvaluatorAgent",
+        "optimizer": "OptimizerAgent",
+        "quality_condition": "lambda state: state.get('quality_score', 0) >= state.get('quality_threshold', 0.8)",
+        "max_iterations": 5
+    }
+}

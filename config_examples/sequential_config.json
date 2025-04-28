@@ -1,0 +1,26 @@
+{
+    "default_model": "gemma3:12b",
+    "default_temperature": 0.0,
+    "agents": [
+        {
+            "name": "CountryAgent",
+            "prompt": "You are an agent that identifies which country a user is referring to based on the input provided.",
+            "tools": []
+        },
+        {
+            "name": "LanguageAgent",
+            "prompt": "You are an agent that adds language information about a country. The input is a country name. The output is the country name and the language spoken in that country.",
+            "tools": []
+        },
+        {
+            "name": "FlagAgent",
+            "prompt": "You are an agent that adds flag information about a country. The output is the country name, language and the description of the flag of that country. Only reply with UTF-8 characters.",
+            "tools": []
+        },
+        {
+            "name": "AggregatorAgent",
+            "prompt": "You are an agent that aggregates information from other agents. Summarize the information provided as input and provide a final output in less than 100 words.",
+            "tools": []
+        }
+    ]
+}

@@ -1,0 +1,76 @@
+{
+    "default_model": "llama3.2:3b",
+    "default_temperature": 0.0,
+    "state_schema": {
+        "type": "object",
+        "properties": {
+            "workers": {
+                "type": "array",
+                "enum": [
+                    "WorkerAgent1",
+                    "WorkerAgent2"
+                ]
+            }
+        },
+        "required": [
+            "workers"
+        ]
+    },
+    "agents": [
+        {
+            "name": "WorkerAgent1",
+            "prompt": "You are a file reader. When given a filename, read its contents and return them.",
+            "tools": [
+                "read_file"
+            ],
+            "tool_functions": {
+                "read_file": {
+                    "function_string": "lambda filename, workspace_path=None: open(filename if workspace_path is None else f'{workspace_path}/{filename}', 'r', encoding='utf-8').read()",
+                    "description": "Reads the contents of a file and returns it as a string."
+                }
+            }
+        },
+        {
+            "name": "WorkerAgent2",
+            "prompt": "You are a file writer. When given a filename and content, write the content to the file.",
+            "tools": [
+                "write_file"
+            ]
+        },
+        {
+            "name": "AggregatorAgent",
+            "prompt": "You are an aggregator. You will take the outputs from the workers and combine them into a final output.",
+            "tools": []
+        }
+    ],
+    "orchestrator": {
+        "name": "OrchestratorAgent",
+        "prompt": "You are an orchestrator. You will manage the workflow of the agents. You will decide which agent to call based on the task type.",
+        "workers": [
+            "WorkerAgent1",
+            "WorkerAgent2"
+        ],
+        "aggregator": "AggregatorAgent",
+        "output_decision_keys": [
+            "workers"
+        ],
+        "output_format": {
+            "type": "object",
+            "properties": {
+                "workers": {
+                    "type": "array",
+                    "enum": [
+                        "WorkerAgent1",
+                        "WorkerAgent2"
+                    ]
+                }
+            },
+            "required": [
+                "workers"
+            ]
+        },
+        "supervise_workers": true,
+        "can_end_workflow": true,
+        "completion_condition": "lambda state: state.get('final_output') is not None"
+    }
+}

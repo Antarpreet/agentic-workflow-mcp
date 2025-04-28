@@ -1,0 +1,20 @@
+{
+    "servers": {
+        "Agentic Workflow": {
+            "type": "stdio",
+            "command": "python",
+            "args": [
+                "-m",
+                "uv",
+                "run",
+                "mcp",
+                "run",
+                "agentic-workflow-mcp/server.py"
+            ],
+            "env": {
+                "WORKSPACE_PATH": "${workspaceFolder}",
+                "WORKFLOW_CONFIG_PATH": "${workspaceFolder}/config_examples/routers_config.json",
+            }
+        }
+    }
+}

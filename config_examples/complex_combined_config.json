@@ -1,0 +1,152 @@
+{
+    "default_model": "llama3.2:3b",
+    "default_temperature": 0.0,
+    "state_schema": {
+        "type": "object",
+        "properties": {
+            "decision_key": {
+                "type": "string",
+                "enum": [
+                    "parallel",
+                    "sequential"
+                ]
+            },
+            "quality_score": {
+                "type": "number"
+            },
+            "quality_threshold": {
+                "type": "number"
+            },
+            "iteration_count": {
+                "type": "integer"
+            },
+            "ParallelTask1_output": {
+                "type": "string"
+            },
+            "ParallelTask2_output": {
+                "type": "string"
+            }
+        },
+        "required": [
+            "decision_key",
+            "quality_score",
+            "quality_threshold",
+            "iteration_count"
+        ]
+    },
+    "agents": [
+        {
+            "name": "ProcessClassifier",
+            "prompt": "Given a user request to summarize a news article, decide whether to process the summary in parallel (split into two parts) or sequentially (process as a whole). Output 'parallel' or 'sequential' as the decision_key.",
+            "output_decision_keys": [
+                "decision_key"
+            ],
+            "output_format": {
+                "type": "object",
+                "properties": {
+                    "decision_key": {
+                        "type": "string",
+                        "enum": [
+                            "parallel",
+                            "sequential"
+                        ]
+                    }
+                },
+                "required": [
+                    "decision_key"
+                ]
+            }
+        },
+        {
+            "name": "SplitAgent",
+            "prompt": "You are an orchestrator. The user wants a summary of a news article. Split the article into two halves for parallel summarization."
+        },
+        {
+            "name": "ParallelTask1",
+            "prompt": "Summarize the first half of the provided news article."
+        },
+        {
+            "name": "ParallelTask2",
+            "prompt": "Summarize the second half of the provided news article."
+        },
+        {
+            "name": "JoinAgent",
+            "prompt": "Combine the two partial summaries from ParallelTask1 and ParallelTask2 into a single coherent summary."
+        },
+        {
+            "name": "ExecutorAgent",
+            "prompt": "Summarize the entire news article in one go."
+        },
+        {
+            "name": "EvaluatorAgent",
+            "prompt": "Evaluate the quality of the generated summary. Rate it from 0 (poor) to 1 (perfect) based on accuracy and completeness.",
+            "output_decision_keys": [
+                "quality_score",
+                "quality_threshold"
+            ],
+            "output_format": {
+                "type": "object",
+                "properties": {
+                    "quality_score": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1
+                    },
+                    "quality_threshold": {
+                        "type": "number",
+                        "default": 0.8
+                    }
+                },
+                "required": [
+                    "quality_score",
+                    "quality_threshold"
+                ]
+            }
+        },
+        {
+            "name": "OptimizerAgent",
+            "prompt": "If the summarization quality is below 0.8, Improve the summary based on the evaluator's feedback. Focus on increasing clarity and including missing key points."
+        }
+    ],
+    "edges": [
+        {
+            "source": "__start__",
+            "target": "ProcessClassifier"
+        },
+        {
+            "source": "JoinAgent",
+            "target": "__end__"
+        },
+        {
+            "source": "EvaluatorAgent",
+            "target": "__end__"
+        }
+    ],
+    "parallel": [
+        {
+            "source": "SplitAgent",
+            "nodes": [
+                "ParallelTask1",
+                "ParallelTask2"
+            ],
+            "join": "JoinAgent"
+        }
+    ],
+    "branches": [
+        {
+            "source": "ProcessClassifier",
+            "condition": "lambda state: state.get('decision_key')",
+            "targets": {
+                "parallel": "SplitAgent",
+                "sequential": "ExecutorAgent"
+            }
+        }
+    ],
+    "evaluator_optimizer": {
+        "executor": "ExecutorAgent",
+        "evaluator": "EvaluatorAgent",
+        "optimizer": "OptimizerAgent",
+        "quality_condition": "lambda state: state.get('quality_score', 0) >= state.get('quality_threshold', 0.8)",
+        "max_iterations": 3
+    }
+}

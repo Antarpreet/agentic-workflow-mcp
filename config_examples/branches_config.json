@@ -1,0 +1,85 @@
+{
+    "default_model": "llama3.2:3b",
+    "default_temperature": 0.0,
+    "state_schema": {
+        "type": "object",
+        "properties": {
+            "input": {
+                "type": "string"
+            },
+            "final_output": {
+                "type": "string"
+            },
+            "class": {
+                "type": "string",
+                "enum": [
+                    "support",
+                    "sales"
+                ]
+            }
+        },
+        "required": [
+            "input",
+            "final_output"
+        ]
+    },
+    "agents": [
+        {
+            "name": "InputClassifier",
+            "prompt": "Route the input to 'support' or 'sales' based on the user's request.",
+            "tools": [],
+            "output_decision_keys": [
+                "class"
+            ],
+            "output_format": {
+                "type": "object",
+                "properties": {
+                    "class": {
+                        "type": "string",
+                        "enum": [
+                            "support",
+                            "sales"
+                        ]
+                    }
+                },
+                "required": [
+                    "class"
+                ]
+            }
+        },
+        {
+            "name": "SupportAgent",
+            "prompt": "Handle support-related queries.",
+            "tools": []
+        },
+        {
+            "name": "SalesAgent",
+            "prompt": "Handle sales-related queries.",
+            "tools": []
+        }
+    ],
+    "edges": [
+        {
+            "source": "__start__",
+            "target": "InputClassifier"
+        },
+        {
+            "source": "SupportAgent",
+            "target": "__end__"
+        },
+        {
+            "source": "SalesAgent",
+            "target": "__end__"
+        }
+    ],
+    "branches": [
+        {
+            "source": "InputClassifier",
+            "condition": "lambda state: state.get('class')",
+            "targets": {
+                "support": "SupportAgent",
+                "sales": "SalesAgent"
+            }
+        }
+    ]
+}

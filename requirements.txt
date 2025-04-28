@@ -1,5 +1,8 @@
-asyncio
-httpx
-mcp
+duckduckgo_search
+mcp==1.6.0
 mcp[cli]
-uv
+uv==0.6.17
+langchain
+langchain-community
+langchain-ollama
+langgraph

@@ -2,15 +2,19 @@
 
 This MCP server allows you to run the Agentic Workflows using a local LLM server using Ollama CLI. This has been tested for `VS Code`. The workflows are designed as follows:
 
-## Parallel Agentic Workflow
+For supported workflow example configurations, see the [Config Examples](config_examples/Readme.md) file.
 
-1. `Orchestrator Agent`: This agent is the first to be called. It is responsible for orchestrating the workflow and calling the other agents as needed, depending on the user prompt.
-2. `Worker Agents`: The orchestrator agent calls these agents to perform specific tasks. The Orchestrator Agent calls these agents in parallel and waits for their responses before proceeding to the next step.
-3. `Aggregator Agent`: This agent is called last to aggregate the results from the other agents and return the final result to Github Copilot.
+## Table of Contents
 
-## Sequential Agentic Workflow
-
-1. All the agents are called sequentially, and the output of one agent is passed as input to the next agent (which is configurable). The final result is returned to Github Copilot. These agents are called in the order they are defined in the config file under `agents_sequence`.
+- [Prerequisites](#prerequisites)
+- [Installation](#installation)
+- [Config Settings](#config-settings)
+- [Config Examples](config_examples/Readme.md)
+- [Environment Variables](#environment-variables)
+- [Custom Embeddings](#custom-embeddings)
+- [Local LLM Tools](#local-llm-tools)
+- [GitHub Copilot Tools](#github-copilot-tools)
+- [Troubleshooting](#troubleshooting)
 
 ## Prerequisites
 
@@ -28,13 +32,15 @@ This MCP server allows you to run the Agentic Workflows using a local LLM server
    git clone https://github.com/Antarpreet/agentic-workflow-mcp.git
    ```
 
-2. Start an LLM server using the ollama CLI. For example, to start the `deepseek-r1:14b` model, run:
+2. Start an LLM server using the ollama CLI. For example, to start the `llama3.2:3b` model, run:
 
     ```bash
-    ollama run deepseek-r1:14b
+    ollama run llama3.2:3b
     ```
 
     This will start the LLM server on `http://localhost:11434` by default.
+
+    > If you are using tools in your workflow, please ensure the model you are using supports them: [Models supporting tools](https://ollama.com/search?c=tools)
 
 3. Install the required Python packages:
 
@@ -44,22 +50,17 @@ This MCP server allows you to run the Agentic Workflows using a local LLM server
 
 4. Add MCP Server to VS Code:
 
-    - Open the Command Palette (Ctrl+Shift+P or Cmd+Shift+P on macOS).
-    - Type MCP and select `MCP: Add MCP Server`.
-    - Select `Command (stdio)` as the server type.
-    - Enter the command to start the MCP server.
+    - Open `.vscode/mcp.json` in your workspace folder. If it doesn't exist, create it.
+    - Update `PATH_TO_YOUR_CONFIG` in the `WORKFLOW_CONFIG_PATH` environment variable to point to the config file in your workspace folder.
 
-    ```bash
-    python -m uv run mcp run agentic-workflow-mcp/server.py
-    ```
-
-    - Name the server: `Agentic Workflow`.
-    - Select `User settings` to add the server to all workspaces or `Workspace settings` to add it to the current workspace only.
-    - If you already have other workspaces open, restart VS Code for changes to take effect.
-    - This will open the `settings.json` file with the new MCP server configuration, which should look like this:
+     > - The default config uses `workspaceFolder` environment variable from `VS Code` to get the path of the workspace.
+     > - If you would like to use `User Settings`, make sure to replace the environment variable with the absolute path of your workspace folder.
+     > - You can open the `settings.json` file directly by using the command `Preferences: Open User Settings (JSON)` in the Command Palette for updating `User Settings`.
+     > - The path to the `config.json` file in the `WORKFLOW_CONFIG_PATH` environment variable `PATH_TO_YOUR_CONFIG` should point to the `config.json` file in your workspace folder. This allows you to use different configurations for different projects.
 
     ```json
-    "mcp": {
+    // .vscode/mcp.json in your workspace folder
+    {
         "servers": {
             "Agentic Workflow": {
                 "type": "stdio",
@@ -71,7 +72,11 @@ This MCP server allows you to run the Agentic Workflows using a local LLM server
                     "mcp",
                     "run",
                     "agentic-workflow-mcp/server.py"
-                ]
+                ],
+                "env": {
+                    "WORKSPACE_PATH": "${workspaceFolder}",
+                    "WORKFLOW_CONFIG_PATH": "${workspaceFolder}/PATH_TO_YOUR_CONFIG/config.json",
+                }
             }
         }
     }
@@ -79,8 +84,8 @@ This MCP server allows you to run the Agentic Workflows using a local LLM server
 
 5. Add Config for the MCP Server as follows:
 
-    - Adjust the default config in `config.json` as needed. The config settings are detailed further below.
-    - Copy the server folder to the user folder. (`C:\Users\<username>\agentic-workflow-mcp` on Windows or `~/agentic-workflow-mcp` on Linux/MacOS).
+    - Adjust the default config in `config.json` as needed. The config settings are detailed further below. There are example configurations in the `config_examples` folder. You can use them as a reference to create your own configuration.
+    - Copy the server folder to the user folder. (`C:\Users\<username>\agentic-workflow-mcp` on Windows or `~/agentic-workflow-mcp` on Linux/MacOS). This will make it easier to access the server files across different projects. You can do this by running the following commands in your terminal:
 
         Windows:
 
@@ -95,84 +100,218 @@ This MCP server allows you to run the Agentic Workflows using a local LLM server
         cp -r agentic-workflow-mcp ~/agentic-workflow-mcp
         ```
 
-    - Anytime you make any changes to these files, copy them to the user folder again and restart the MCP server in the `settings.json` file for the changes to take effect.
+    > Anytime you make any changes to these files, copy them to the user folder again and restart the MCP server in the `.vscode/mcp.json` file for the changes to take effect.
 
 6. Start the MCP server:
 
-    - Click the start button above the MCP server configuration in the `settings.json` file.
+    - Click the `Start` button above the MCP server configuration in the `.vscode/mcp.json` file in your workspace folder.
     - This will start the MCP server; you can see the logs in the Output panel under `MCP: Agentic Workflow` by clicking either the `Running` or `Error` button above the MCP server configuration.
 
 7. Start using the MCP server:
 
     - Open GitHub Copilot in VS Code and switch to `Agent` mode.
     - You should see the `Agentic Workflow` MCP server and `start_workflow` tool in the Copilot tools panel.
-    - You can now use the `start_workflow` tool to start the Agentic Workflow. Prompt example:
+    - You can now start using the MCP tools. Prompt example:
 
-    ```plaintext
+    ```typescript
+    // This will create a `graph.png` file in your workspace folder.
+    // It's recommended to use this before running the workflow
+    // to see the graph of the agents and their connections.
+    Use MCP Tools to display the graph.
+    // This will start the workflow.
     Use MCP Tools to start a workflow to YOUR_PROMPT_HERE.
     ```
 
 ## Config Settings
 
-### The config settings are defined as follows
+### Workflow
 
 | Key | Type | Description | Required | Defaults |
 | --- | --- | --- | --- | --- |
-| `default_model` | string | The default model to use for the LLM server. | `true` | `deepseek-r1:14b` |
-| `url` | string | The URL of the Ollama LLM server. | `true` | `http://localhost:11434` |
-| `verbose` | boolean | Whether to enable verbose logging. | `false` | `false` |
-| `parallel` | boolean | Whether to run the agents in parallel or sequentially. | `false` | `true` |
-| `base_path` | string | The absolute base path for your repo where you will be using this MCP Server. Required if you are using `file_extractor` agent. | `false` | `""` |
-| `excluded_agents` | string[] | The agents to exclude from the workflow. | `false` | `[]` |
-| `agents_sequence` | string[] | The sequence of agents to use in the workflow. This is only used if `parallel` is set to `false`. | `false` | `[]` |
-| `default_pass_to_next` | boolean | Whether to pass the output of the agent to the next agent by default. This is only used if `parallel` is set to `false`. | `false` | `true` |
-| `default_output_format` | object | The default output format for the LLM server. | `false` | `{"type": "object", "properties": {"response": {"type": "string"}}, "required": ["response"]}` |
-| `agents` | object[] | The agents used in the workflow. | `false` | Agents |
+| `default_model` | string | The default model to use for the LLM server. | `true` | `llama3.2:3b` |
+| `default_temperature` | number | The default temperature to use for the LLM server. | `false` | `0.0` |
+| `embedding_model` | string | The embedding model to use for the LLM server. | `false` | `nomic-embed-text` |
+| `collection_name` | string | The name of the ChromaDB vector database collection to use for the LLM server. | `false` | `langchain_chroma_collection` |
+| `delete_missing_embeddings` | boolean | Whether to delete the embeddings for files that are no longer present in the workspace. | `false` | `false` |
+| `state_schema` | object | The schema for the workflow state. | `false` | `{"type": "object", "properties": {"input": {"type": "string"},"final_output": {"type": "string"}}, "required": ["input","final_output"]}` |
+| `agents` | object[] | The agents used in the workflow. | `true` | [Agent](#agent) |
+| `orchestrator` | object | The orchestrator agent configuration. | `false` | [Orchestrator](#orchestrator) |
+| `evaluator_optimizer` | object | The evaluator configuration. | `false` | [Evaluator](#evaluator) |
+| `edges` | object[] | The edges between the agents in the workflow. | `false` | [Edge](#edge) |
+| `parallel` | object[] | The parallel agents configuration. | `false` | [Parallel](#parallel) |
+| `branches` | object[] | The branches in the workflow. | `false` | [Branch](#branch) |
+| `routers` | object[] | The routers in the workflow. | `false` | [Router](#router) |
 
-### Agents are defined as follows
+### Agent
 
-| Key | Type | Description | Required | Defaults |
+| Key | Type | Description | Required | Example |
 | --- | --- | --- | --- | --- |
 | `name` | string | The name of the agent. | `true` | `Orchestrator Agent` |
-| `description` | string | The description of the agent. | `true` | `This agent is responsible for orchestrating the workflow and calling the other agents as needed, depending on the user prompt.` |
-| `model` | string | The model to use for the agent. | `false` | `deepseek-r1:14b` |
-| `pass_to_next` | boolean | Whether to pass the output of this agent to the next agent. | `false` | `false` |
-| `agents_to_use` | string[] | The agents to use for the current agent before processing the current agent prompt. | `false` | `[]` |
+| `model_name` | string | The model to use for the agent. If different from the default model. | `false` | `llama3.2:3b` |
+| `temperature` | number | The temperature to use for the agent. If different from the default temperature. | `false` | `0.0` |
 | `prompt` | string | The prompt to use for the agent. This takes precedence over `prompt_file`. | `true` | `You are an agent that is responsible for orchestrating the workflow and calling the other agents as needed, depending on the user prompt. You will call the other agents in parallel and wait for their responses before proceeding to the next step. You will also call the Aggregator Agent in the end to aggregate the results from the other agents and return the final result to Github Copilot.` |
-| `prompt_file` | string | Either the absolute path to the prompt file or path to the prompt file in the format `agentic-workflow-mcp/YOUR_PROMPT_FILE_NAME` if the prompt file is added to the `agentic-workflow-mcp` in this repo. | `false` | `""` |
+| `prompt_file` | string | Either the absolute path to the prompt file or path to the prompt file in the format `agentic-workflow-mcp/YOUR_PROMPT_FILE_NAME` if the prompt file is added to the `agentic-workflow-mcp` in this repo. | `false` | `prompt.txt` |
+| `output_decision_keys` | string[] | The keys in the output that will be used in the workflow state. | `false` | `["decision_key"]` |
 | `output_format` | object | The output format for the agent. | `false` | `{"type": "object", "properties": {"response": {"type": "string"}}, "required": ["response"]}` |
+| `tools` | string[] | The tools to use for the agent. | `false` | `["read_file"]` |
+| `tool_functions` | object[] | The functions to use for the tools. | `false` | `{"TOOL_NAME":` [TOOL](#tool)`}` |
+
+### Tool
+
+| Key | Type | Description | Required | Example |
+| --- | --- | --- | --- | --- |
+| `description` | string | The description of the tool. | `true` | `Reads the contents of a file and returns it as a string.` |
+| `function_string` | string | The function string to use for the tool. | `true` | `lambda filename, workspace_path=None: open(filename if workspace_path is None else f'{workspace_path}/{filename}', 'r', encoding='utf-8').read()` |
+
+### Orchestrator
+
+| Key | Type | Description | Required | Example |
+| --- | --- | --- | --- | --- |
+| `name` | string | The name of the orchestrator agent. | `true` | `OrchestratorAgent` |
+| `model_name` | string | The model to use for the orchestrator agent. | `false` | `llama3.2:3b` |
+| `temperature` | number | The temperature to use for the orchestrator agent. | `false` | `0.0` |
+| `aggregator` | string | The name of the aggregator agent. | `true` | `AggregatorAgent` |
+| `prompt` | string | The prompt to use for the orchestrator agent. | `true` | `You are an agent that orchestrates the workflow.` |
+| `prompt_file` | string | The prompt file to use for the orchestrator agent. | `false` | `prompt.txt` |
+| `output_decision_keys` | string[] | The keys in the output that will be used in the workflow state. | `false` | `["decision_key"]` |
+| `output_format` | object | The output format for the orchestrator agent. | `false` | `{"type": "object", "properties": {"response": {"type": "string"}}, "required": ["response"]}` |
+| `tools` | string[] | The tools to use for the orchestrator agent. | `false` | `["read_file"]` |
+| `tool_functions` | object[] | The functions to use for the tools. | `false` | `{"TOOL_NAME": TOOL}` |
+| `workers` | string[] | The workers to use for the orchestrator agent. | `true` | `["Worker1", "Worker2"]` |
+| `supervise_workers` | boolean | Whether to supervise the workers. | `false` | `false` |
+| `can_end_workflow` | boolean | Whether the orchestrator can end the workflow. | `false` | `false` |
+| `completion_condition` | string | The completion condition for the orchestrator agent. | `true` | `lambda state: state.get('final_output') is not None` |
+
+### Evaluator
+
+| Key | Type | Description | Required | Example |
+| --- | --- | --- | --- | --- |
+| `executor` | string | The name of the executor agent. | `true` | `ExecutorAgent` |
+| `evaluator` | string | The name of the evaluator agent. | `true` | `EvaluatorAgent` |
+| `optimizer` | string | The name of the optimizer agent. | `true` | `OptimizerAgent` |
+| `quality_condition` | string | The quality condition for the evaluator agent. | `true` | `lambda state: state.get('quality_score', 0) >= state.get('quality_threshold', 0.8)` |
+| `max_iterations` | integer | The maximum number of iterations for the evaluator agent. | `false` | `5` |
+
+### Edge
+
+| Key | Type | Description | Required | Example |
+| --- | --- | --- | --- | --- |
+| `source` | string | The source agent. The value can also be `__start__` representing start of the workflow. | `true` | `OrchestratorAgent` |
+| `target` | string | The target agent. The value can also be `__end__` representing end of the workflow. | `true` | `AggregatorAgent` |
+
+### Parallel
+
+| Key | Type | Description | Required | Example |
+| --- | --- | --- | --- | --- |
+| `source` | string | The source agent that will call the parallel agents. | `true` | `SplitAgent` |
+| `nodes` | string[] | The parallel agents. | `true` | `["Agent1", "Agent2"]` |
+| `join` | string | The agent that will join the responses from parallel agents. | `true` | `JoinAgent` |
+
+### Branch
+
+| Key | Type | Description | Required | Example |
+| --- | --- | --- | --- | --- |
+| `source` | string | The source agent that will call the branch agents. | `true` | `InputClassifierAgent` |
+| `condition` | string | The condition for the branch. | `true` | `lambda state: state.get('class')'` |
+| `targets` | object | The target agents for the branch. | `true` | `{"class1": "Agent1", "class2": "Agent2"}` |
+
+### Router
+
+| Key | Type | Description | Required | Example |
+| --- | --- | --- | --- | --- |
+| `source` | string | The source agent that will call the router agents. | `true` | `RouterAgent` |
+| `router_function` | string | The function to use for the router. | `true` | `lambda state: state.get('next_step')` |
+
+## Environment Variables
+
+These are the environment variables that are used in the MCP server. You can set them in the `.vscode/mcp.json` file as shown above.
+
+| Key | Type | Description | Required | Defaults |
+| --- | --- | --- | --- | --- |
+| `WORKSPACE_PATH` | string | The workspace path to the files to read. | `true` | `${workspaceFolder}` |
+| `WORKFLOW_CONFIG_PATH` | string | The path to the config file. | `true` | `${workspaceFolder}/PATH_TO_YOUR_CONFIG/config.json` |
 
 ## Custom Embeddings
 
+- Coming soon!
+
 ## Local LLM Tools
 
+These are local tools available to the local Ollama LLM server. You can use these tools in your workflow to perform various tasks. These tools will be invoked as part of the workflow so you don't have to worry about calling them separately. The tools are defined in the `config.json` file and can be used in the workflow by specifying the tool names in the agent config.
+
+> You can add your own tools directly in the `config.json` file as described above.
+
+### `read_file`
+
+Reads the content of a file and returns it as a string.
+
+| Item | Type | Description | Required | Defaults |
+| --- | --- | --- | --- | --- |
+| `file_path` | string | The path to the file to read. | `true` | `""` |
+| `workspace_path` | string | The workspace path to the file to read. | `false` | `${workspaceFolder}` |
+
+### `read_multiple_files`
+
+Reads the content of multiple files and returns them as a single string.
+
+| Item | Type | Description | Required | Defaults |
+| --- | --- | --- | --- | --- |
+| `file_paths` | string[] | The paths to the files to read. | `true` | `[]` |
+| `workspace_path` | string | The workspace path to the files to read. | `false` | `${workspaceFolder}` |
+
+### `list_files`
+
+Lists all files in a given directory.
+
+| Item | Type | Description | Required | Defaults |
+| --- | --- | --- | --- | --- |
+| `directory` | string | The path to the directory to list files from. | `true` | `""` |
+| `workspace_path` | string | The workspace path to the directory to list files from. | `false` | `${workspaceFolder}` |
+
+### `write_file`
+
+Writes the given content to a file. Creates directories if they don't exist.
+
+| Item | Type | Description | Required | Defaults |
+| --- | --- | --- | --- | --- |
+| `file_path` | string | The path to the file to write to. | `true` | `""` |
+| `content` | string | The content to write to the file. | `true` | `""` |
+| `workspace_path` | string | The workspace path to the file to write to. | `false` | `${workspaceFolder}` |
+
+### `web_search`
+
+Performs a web search using DuckDuckGo and returns the results.
+
+| Item | Type | Description | Required | Defaults |
+| --- | --- | --- | --- | --- |
+| `query` | string | The search query. | `true` | `""` |
+| `max_results` | integer | The maximum number of results to return. | `false` | `5` |
+
 ## GitHub Copilot Tools
+
+### `display_graph`
+
+Generates a graph image from the workflow configuration and saves it to a `graph.png` file in the workspace folder. This is useful for visualizing the workflow and understanding the connections between agents.
 
 ### `start_workflow`
 
 This tool is used to start the Agentic Workflow. It takes a prompt as input and returns the result of the workflow.
 
-## Example usage (Parallel Agentic Workflow)
+### `embed_files` - Coming soon
 
-The example configuration contains agents that get information regarding a country. There are three agents besides the `Orchestrator Agent` and `Aggregator Agent`: `Country`, `Flag`, and `Language`. Depending on your prompt, each of them will return their responses, and the combined responses are sent to the `Aggregator Agent`, which will return the final result.
-
-There is also a `prompt.txt` file, which contains the prompt for the `Orchestrator Agent` as an example to show how to use a file instead of a string for the prompt. The `prompt.txt` file is used in the `prompt_file` key of the `Orchestrator Agent` in `config.json`.
-
-Test Prompt: `Use MCP tools to start workflow to confirm whether France is real or not`
+This tools creates embeddings for one or more files and store them in the local ChromaDB vector database. These embeddings can be used for various tasks such as semantic search, clustering, and classification as part of the workflow and can be sent to the LLM server for processing.
 
 ## Troubleshooting
 
 - If the MCP server is not making any requests to the LLM server, do the following:
 
     1. Restart VS Code as a sanity check.
-    2. Sometimes the Ollama server doesn't respond if it hasn't been used for a while. In that case, open the ollama URL (`http://localhost:11434`) in a browser. You should see the message `Ollama is running`. If you don't see this message, restart the Ollama server using the command `ollama run deepseek-r1:14b`.
+    2. Ensure the Ollama LLM server is running and accessible.
     3. Copy the server files again using the commands above, another sanity check.
-    4. If your request to the local LLM is failing or taking too long, it might be a good idea to increase the read timeout in the `server.py` file.
-    5. Restart the MCP server in the `settings.json` file.
-    6. Create a new chat in GitHub Copilot.
+    4. Restart the MCP server in the `.vscode/mcp.json` file.
+    5. Create a new chat in GitHub Copilot and switch to `Agent` mode.
 
-- To see the internal logs, you can set the `verbose` key in the `config.json` file to `true`. This will include all the logs in the response. You can see these by expanding the `start_workflow` tool in the Copilot chat window.
-- You can also check the logs using:
+- You can check the logs using:
 
     Windows:
 
@@ -185,7 +324,3 @@ Test Prompt: `Use MCP tools to start workflow to confirm whether France is real 
     ```bash
     tail -f ~/agentic-workflow-mcp/logs.txt
      ```
-
-## TODO
-
-- Add support for multi-modality using local LLM servers.

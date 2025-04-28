@@ -1,0 +1,70 @@
+{
+    "default_model": "llama3.2:3b",
+    "default_temperature": 0.0,
+    "state_schema": {
+        "type": "object",
+        "properties": {
+            "next_step": {
+                "type": "string"
+            }
+        },
+        "required": [
+            "next_step"
+        ]
+    },
+    "agents": [
+        {
+            "name": "RouterAgent",
+            "prompt": "A user has submitted a request. If the request is about resetting a password, set 'next_step' to 'StepOneAgent'. If the request is about updating an email address, set 'next_step' to 'StepTwoAgent'.",
+            "tools": [],
+            "output_decision_keys": [
+                "next_step"
+            ],
+            "output_format": {
+                "type": "object",
+                "properties": {
+                    "next_step": {
+                        "type": "string",
+                        "enum": [
+                            "StepOneAgent",
+                            "StepTwoAgent"
+                        ]
+                    }
+                },
+                "required": [
+                    "next_step"
+                ]
+            }
+        },
+        {
+            "name": "StepOneAgent",
+            "prompt": "Guide the user through the password reset process.",
+            "tools": []
+        },
+        {
+            "name": "StepTwoAgent",
+            "prompt": "Guide the user through updating their email address.",
+            "tools": []
+        }
+    ],
+    "edges": [
+        {
+            "source": "__start__",
+            "target": "RouterAgent"
+        },
+        {
+            "source": "StepOneAgent",
+            "target": "__end__"
+        },
+        {
+            "source": "StepTwoAgent",
+            "target": "__end__"
+        }
+    ],
+    "routers": [
+        {
+            "source": "RouterAgent",
+            "router_function": "lambda state: state.get('next_step')"
+        }
+    ]
+}
