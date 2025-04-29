@@ -154,7 +154,7 @@ For supported workflow example configurations, see the [Config Examples](config_
 | `output_decision_keys` | string[] | The keys in the output that will be used in the workflow state. | `false` | `["decision_key"]` |
 | `output_format` | object | The output format for the agent. | `false` | `{"type": "object", "properties": {"response": {"type": "string"}}, "required": ["response"]}` |
 | `tools` | string[] | The tools to use for the agent. | `false` | `["read_file"]` |
-| `tool_functions` | object[] | The functions to use for the tools. | `false` | `{"TOOL_NAME":` [TOOL](#tool)`}` |
+| `tool_functions` | object[] | The functions to use for the tools. | `false` | `{"read_file":` [TOOL](#tool)`}` |
 
 ### Tool
 
@@ -176,7 +176,7 @@ For supported workflow example configurations, see the [Config Examples](config_
 | `output_decision_keys` | string[] | The keys in the output that will be used in the workflow state. | `false` | `["decision_key"]` |
 | `output_format` | object | The output format for the orchestrator agent. | `false` | `{"type": "object", "properties": {"response": {"type": "string"}}, "required": ["response"]}` |
 | `tools` | string[] | The tools to use for the orchestrator agent. | `false` | `["read_file"]` |
-| `tool_functions` | object[] | The functions to use for the tools. | `false` | `{"TOOL_NAME": TOOL}` |
+| `tool_functions` | object[] | The functions to use for the tools. | `false` | `{"read_file": TOOL}` |
 | `workers` | string[] | The workers to use for the orchestrator agent. | `true` | `["Worker1", "Worker2"]` |
 | `supervise_workers` | boolean | Whether to supervise the workers. | `false` | `false` |
 | `can_end_workflow` | boolean | Whether the orchestrator can end the workflow. | `false` | `false` |
