@@ -84,7 +84,7 @@ For supported workflow example configurations, see the [Config Examples](config_
 
 5. Add Config for the MCP Server as follows:
 
-    - Adjust the default config in `config.json` as needed. The config settings are detailed further below. There are example configurations in the `config_examples` folder. You can use them as a reference to create your own configuration.
+    - Use one of the default configurations from `config_examples` in your `config.json` file as needed. The config settings are detailed further below. There are example configurations in the `config_examples` folder. You can use them as a reference to create your own configuration.
     - Copy the server folder to the user folder. (`C:\Users\<username>\agentic-workflow-mcp` on Windows or `~/agentic-workflow-mcp` on Linux/MacOS). This will make it easier to access the server files across different projects. You can do this by running the following commands in your terminal:
 
         Windows:
