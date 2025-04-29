@@ -194,6 +194,7 @@ def embed_files(file_paths: Union[str, List[str]]) -> dict:
         dict: Information about the embedding operation
     """
     ctx = mcp.get_context()
+    log_message([], f"Embedding files: {file_paths}")
     workflow_config: WorkflowConfig = ctx.request_context.lifespan_context.workflow_config
     collection_name = workflow_config.get("collection_name", DEFAULT_WORKFLOW_CONFIG["collection_name"])
     delete_missing_embeddings = workflow_config.get("delete_missing_embeddings", DEFAULT_WORKFLOW_CONFIG["delete_missing_embeddings"])

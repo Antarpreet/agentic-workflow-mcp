@@ -55,7 +55,7 @@ For supported workflow example configurations, see the [Config Examples](config_
 
      > - The default config uses `workspaceFolder` environment variable from `VS Code` to get the path of the workspace.
      > - If you would like to use `User Settings`, make sure to replace the environment variable with the absolute path of your workspace folder.
-     > - You can open the `settings.json` file directly by using the command `Preferences: Open User Settings (JSON)` in the Command Palette for updating `User Settings`.
+     > - You can open the User `settings.json` file directly by using the command `Preferences: Open User Settings (JSON)` in the Command Palette for updating `User Settings` and add the following config in a `mcp` object: `mcp: { "servers": ... }`.
      > - The path to the `config.json` file in the `WORKFLOW_CONFIG_PATH` environment variable `PATH_TO_YOUR_CONFIG` should point to the `config.json` file in your workspace folder. This allows you to use different configurations for different projects.
 
     ```json
@@ -154,7 +154,7 @@ For supported workflow example configurations, see the [Config Examples](config_
 | `output_decision_keys` | string[] | The keys in the output that will be used in the workflow state. | `false` | `["decision_key"]` |
 | `output_format` | object | The output format for the agent. | `false` | `{"type": "object", "properties": {"response": {"type": "string"}}, "required": ["response"]}` |
 | `tools` | string[] | The tools to use for the agent. | `false` | `["read_file"]` |
-| `tool_functions` | object[] | The functions to use for the tools. | `false` | `{"read_file":` [TOOL](#tool)`}` |
+| `tool_functions` | object[] | The functions to use for the tools. | `false` | `{"read_file":` [Tool](#tool)`}` |
 
 ### Tool
 
@@ -177,7 +177,7 @@ For supported workflow example configurations, see the [Config Examples](config_
 | `output_format` | object | The output format for the orchestrator agent. | `false` | `{"type": "object", "properties": {"response": {"type": "string"}}, "required": ["response"]}` |
 | `tools` | string[] | The tools to use for the orchestrator agent. | `false` | `["read_file"]` |
 | `tool_functions` | object[] | The functions to use for the tools. | `false` | `{"read_file": TOOL}` |
-| `workers` | string[] | The workers to use for the orchestrator agent. | `true` | `["Worker1", "Worker2"]` |
+| `workers` | string[] | The workers to use for the orchestrator agent. | `true` | `["Agent1", "Agent2"]` |
 | `supervise_workers` | boolean | Whether to supervise the workers. | `false` | `false` |
 | `can_end_workflow` | boolean | Whether the orchestrator can end the workflow. | `false` | `false` |
 | `completion_condition` | string | The completion condition for the orchestrator agent. | `true` | `lambda state: state.get('final_output') is not None` |
