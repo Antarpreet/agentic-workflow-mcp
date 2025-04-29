@@ -11,6 +11,7 @@ from mcp.server.fastmcp import Context
 
 from tools.file_system import read_file, write_file
 from tools.web_search import web_search
+from tools.embedding_retriever import retrieve_embeddings
 from core.log import log_message
 from core.model import DefaultWorkflowState, DEFAULT_WORKFLOW_CONFIG, WorkflowConfig, AgentConfig
 from core.util import typed_dict_from_json_schema, get_full_schema, ensure_utf8
@@ -132,10 +133,10 @@ def invoke_llm(model: ChatOllama, prompt_template: str, current_input: str, tool
     try:
         log_message(logs, ensure_utf8(f"Node {agent_name} using tools: {[getattr(t, '__name__', str(t)) for t in tools]}"))
         final_model = model
-        if output_format:
-            final_model = final_model.with_structured_output(schema=output_format)
         if tools:
             final_model = final_model.bind_tools(tools)
+        if output_format:
+            final_model = final_model.with_structured_output(schema=output_format)
         # Ensure all inputs are utf-8
         safe_prompt = ensure_utf8(prompt_template)
         safe_input = ensure_utf8(current_input)
@@ -151,7 +152,7 @@ def invoke_llm(model: ChatOllama, prompt_template: str, current_input: str, tool
     return llm_response
 
 
-def handle_tool_calls(llm_response: AIMessage, tools: list, logs: list, workspace_path: str) -> dict:
+def handle_tool_calls(llm_response: AIMessage, tools: list, logs: list, workspace_path: str, ctx: Context) -> dict:
     """
     Handles tool calls from the LLM response and executes them.
 
@@ -169,8 +170,9 @@ def handle_tool_calls(llm_response: AIMessage, tools: list, logs: list, workspac
         for tool_call in llm_response.tool_calls:
             tool_name = tool_call.get("name")
             arguments = tool_call.get("args", {})
-            if "workspace_path" not in arguments:
-                arguments["workspace_path"] = workspace_path
+            arguments["workspace_path"] = workspace_path
+            arguments["logs"] = logs
+            arguments["ctx"] = ctx
             tool_func = next(
                 (t for t in tools if getattr(t, "name", None) == tool_name or getattr(t, "__name__", None) == tool_name),
                 None
@@ -189,7 +191,7 @@ def handle_tool_calls(llm_response: AIMessage, tools: list, logs: list, workspac
                 result = f"Tool '{tool_name}' not found"
                 log_message(logs, f"Tool '{tool_name}' not found in tools list.")
             tool_results.append({"tool": tool_name, "result": result})
-        return {"tool_results": tool_results}
+        return json.dumps({"tool_results": tool_results})
     return None
 
 
@@ -229,7 +231,7 @@ def parse_llm_response(llm_response: AIMessage, output_format: str) -> dict:
 
 def process_llm_response(
     llm_response: AIMessage, agent_name: str, agent_config: AgentConfig, output_format: dict, state: dict, workflow_config: WorkflowConfig,
-    is_parallel_node: bool, logs: list, workspace_path: str, tools: list
+    is_parallel_node: bool, logs: list, workspace_path: str, tools: list, ctx: Context
 ) -> dict:
     """
     Processes the LLM response and updates the state based on the agent configuration.
@@ -245,12 +247,13 @@ def process_llm_response(
         logs (list): List to store log messages during processing.
         workspace_path (str): The workspace path for file operations.
         tools (list): List of tools available to the agent.
+        ctx (Context): The MCP context containing application resources.
 
     Returns:
         dict: A dictionary containing the updated state after processing the LLM response.
     """
     try:
-        llm_response_json = handle_tool_calls(llm_response, tools, logs, workspace_path)
+        llm_response_json = handle_tool_calls(llm_response, tools, logs, workspace_path, ctx)
         if llm_response_json is None:
             llm_response_json = parse_llm_response(llm_response, output_format)
 
@@ -290,7 +293,11 @@ def process_llm_response(
     return update_dict
 
 
-def agent_node_action(state: dict, model: ChatOllama, prompt_template: str, tools: list, agent_config: AgentConfig, workflow_config: WorkflowConfig, logs: list):
+def agent_node_action(
+        state: dict, model: ChatOllama, prompt_template: str, tools: list,
+        agent_config: AgentConfig, workflow_config: WorkflowConfig,
+        logs: list, ctx: Context
+    ) -> dict:
     """
     Executes the action for a specific agent node in the graph.
 
@@ -302,6 +309,7 @@ def agent_node_action(state: dict, model: ChatOllama, prompt_template: str, tool
         agent_config (AgentConfig): The configuration for this agent node.
         workflow_config (WorkflowConfig): The workflow configuration dictionary.
         logs (list): List to store log messages during execution.
+        ctx (Context): The MCP context containing application resources.
 
     Returns:
         dict: A dictionary containing the updated state after executing the agent node.
@@ -327,7 +335,7 @@ def agent_node_action(state: dict, model: ChatOllama, prompt_template: str, tool
 
     update_dict = process_llm_response(
         llm_response, agent_name, agent_config, output_format, state, workflow_config,
-        is_parallel_node, logs, workspace_path, tools
+        is_parallel_node, logs, workspace_path, tools, ctx
     )
 
     return update_dict
@@ -368,6 +376,8 @@ def add_tools(agent_config: AgentConfig, agent_name: str, logs: list) -> list:
             agent_tools.append(tool_function if tool_function else write_file)
         elif tool_name == "web_search":
             agent_tools.append(tool_function if tool_function else web_search)
+        elif tool_name == "retrieve_embeddings":
+            agent_tools.append(tool_function if tool_function else retrieve_embeddings)
         # Add mappings for other tools here...
         # elif tool_name == "some_other_tool":
         #     agent_tools.append(some_other_tool_function)
@@ -440,7 +450,8 @@ def add_nodes(graph: StateGraph, agents: list, workflow_config: WorkflowConfig, 
             tools=agent_tools,
             agent_config=agent_config,
             workflow_config=workflow_config,
-            logs=logs # Pass the logs list to the node action
+            logs=logs,
+            ctx=ctx
         )
 
         # Add the configured node to the graph

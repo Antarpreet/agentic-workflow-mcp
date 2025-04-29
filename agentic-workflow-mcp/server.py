@@ -3,12 +3,13 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import List, Union
 
-from chromadb import Client
+from chromadb import PersistentClient
 from chromadb.config import Settings
-from langchain.chains import RetrievalQA
-from langchain_community.embeddings import OllamaEmbeddings
-from langchain_community.vectorstores import Chroma
-from langchain_ollama import ChatOllama
+from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain.chains.retrieval import create_retrieval_chain
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_chroma import Chroma
+from langchain_ollama import ChatOllama, OllamaEmbeddings
 from mcp.server.fastmcp import FastMCP
 
 from core.embedding import update_embeddings
@@ -29,62 +30,72 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     Returns:
         AsyncIterator[AppContext]: Yields the application context with initialized resources.
     """
-    # Load the workflow configuration
-    workflow_config: WorkflowConfig = load_workflow_config(os.getenv("WORKFLOW_CONFIG_PATH"))
+    try:
+        workspace_path = os.getenv('WORKSPACE_PATH')
+        # Load the workflow configuration
+        workflow_config: WorkflowConfig = load_workflow_config(os.getenv("WORKFLOW_CONFIG_PATH"))
 
-    embedding_model_name = workflow_config.get("embedding_model", DEFAULT_WORKFLOW_CONFIG["embedding_model"])
-    default_model_name = workflow_config.get("default_model", DEFAULT_WORKFLOW_CONFIG["default_model"])
-    default_temperature = workflow_config.get("default_temperature", DEFAULT_WORKFLOW_CONFIG["default_temperature"])
-    collection_name = workflow_config.get("collection_name", DEFAULT_WORKFLOW_CONFIG["collection_name"])
+        embedding_model_name = workflow_config.get("embedding_model", DEFAULT_WORKFLOW_CONFIG["embedding_model"])
+        default_model_name = workflow_config.get("default_model", DEFAULT_WORKFLOW_CONFIG["default_model"])
+        default_temperature = workflow_config.get("default_temperature", DEFAULT_WORKFLOW_CONFIG["default_temperature"])
+        collection_name = workflow_config.get("collection_name", DEFAULT_WORKFLOW_CONFIG["collection_name"])
 
-    log_message([], f"embedding_model_name: {embedding_model_name}")
-    log_message([], f"default_model_name: {default_model_name}")
-    log_message([], f"default_temperature: {default_temperature}")
-    log_message([], f"collection_name: {collection_name}")
-    log_message([], f"workspace_path: {os.getenv('WORKSPACE_PATH')}")
+        log_message([], f"embedding_model_name: {embedding_model_name}")
+        log_message([], f"default_model_name: {default_model_name}")
+        log_message([], f"default_temperature: {default_temperature}")
+        log_message([], f"collection_name: {collection_name}")
+        log_message([], f"workspace_path: {workspace_path}")
 
-    # Initialize Ollama embeddings
-    embedding_model = OllamaEmbeddings(model=embedding_model_name)
+        # Initialize Ollama embeddings
+        embedding_model = OllamaEmbeddings(model=embedding_model_name)
 
-    # Initialize ChromaDB client
-    persist_directory = "./chroma_db"
-    chroma_client = Client(Settings(
-        persist_directory=persist_directory,
-        anonymized_telemetry=False
-    ))
+        # Initialize ChromaDB client
+        persist_directory = "chroma_vector_db"
+        chroma_client = PersistentClient(
+            path=os.path.join(workspace_path, persist_directory),
+            settings=Settings(
+                persist_directory=persist_directory,
+                anonymized_telemetry=False
+            )
+        )
 
-    # Initialize Chroma as a LangChain vectorstore using Ollama embeddings
-    vectorstore = Chroma(
-        client=chroma_client,
-        collection_name=collection_name,
-        embedding_function=embedding_model,
-        persist_directory=persist_directory # Ensure persistence
-    )
+        # Initialize Chroma as a LangChain vectorstore using Ollama embeddings
+        vectorstore = Chroma(
+            client=chroma_client,
+            collection_name=collection_name,
+            embedding_function=embedding_model,
+            persist_directory=persist_directory
+        )
 
-    # Initialize Ollama LLM
-    llm = ChatOllama(model=default_model_name, temperature=default_temperature)
+        # Initialize Ollama LLM
+        llm = ChatOllama(model=default_model_name, temperature=default_temperature)
 
-    # Set up a Retriever
-    retriever = vectorstore.as_retriever()
+        # Set up a Retriever
+        retriever = vectorstore.as_retriever()
 
-    # Set up a RetrievalQA chain
-    qa_chain = RetrievalQA.from_chain_type(
-        llm=llm, # Pass the initialized LLM
-        retriever=retriever,
-        chain_type="stuff"
-    )
+        # Set up a Retrieval chain for RAG
+        prompt = ChatPromptTemplate.from_template("""Answer the following question based only on the provided context:
+            <context>
+            {context}
+            </context>
+            Question: {input}""")
+        document_chain = create_stuff_documents_chain(llm, prompt)
+        retrieval_chain = create_retrieval_chain(retriever, document_chain)
 
-    # Yield the context with all initialized resources
-    yield AppContext(
-        server=server,
-        embedding_model=embedding_model,
-        chroma_client=chroma_client,
-        vectorstore=vectorstore,
-        llm=llm,
-        retriever=retriever,
-        qa_chain=qa_chain,
-        workflow_config=workflow_config
-    )
+        # Yield the context with all initialized resources
+        yield AppContext(
+            server=server,
+            embedding_model=embedding_model,
+            chroma_client=chroma_client,
+            vectorstore=vectorstore,
+            llm=llm,
+            retriever=retriever,
+            retrieval_chain=retrieval_chain,
+            workflow_config=workflow_config
+        )
+    except Exception as e:
+        log_message([], f"Error initializing app context: {str(e)} {repr(e)}")
+        raise
     # Teardown code here (if needed, e.g., explicitly stopping services)
     # chroma_client.persist() # Chroma client might persist automatically depending on config
 

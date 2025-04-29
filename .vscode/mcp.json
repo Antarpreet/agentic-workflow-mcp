@@ -13,7 +13,7 @@
             ],
             "env": {
                 "WORKSPACE_PATH": "${workspaceFolder}",
-                "WORKFLOW_CONFIG_PATH": "${workspaceFolder}/config_examples/routers_config.json",
+                "WORKFLOW_CONFIG_PATH": "${workspaceFolder}/config_examples/embedding_retrieval_config.json",
             }
         }
     }

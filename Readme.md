@@ -11,9 +11,9 @@ For supported workflow example configurations, see the [Config Examples](config_
 - [Config Settings](#config-settings)
 - [Config Examples](config_examples/Readme.md)
 - [Environment Variables](#environment-variables)
-- [Custom Embeddings](#custom-embeddings)
-- [Local LLM Tools](#local-llm-tools)
 - [GitHub Copilot Tools](#github-copilot-tools)
+- [Custom Embeddings for RAG](#custom-embeddings-for-rag)
+- [Local LLM Tools](#local-llm-tools)
 - [Troubleshooting](#troubleshooting)
 
 ## Prerequisites
@@ -120,6 +120,8 @@ For supported workflow example configurations, see the [Config Examples](config_
     Use MCP Tools to display the graph.
     // This will start the workflow.
     Use MCP Tools to start a workflow to YOUR_PROMPT_HERE.
+    // This will create embeddings for the files passed in the prompt.
+    Use MCP tool to embed files #file:Readme.md
     ```
 
 ## Config Settings
@@ -132,7 +134,7 @@ For supported workflow example configurations, see the [Config Examples](config_
 | `default_temperature` | number | The default temperature to use for the LLM server. | `false` | `0.0` |
 | `embedding_model` | string | The embedding model to use for the LLM server. | `false` | `nomic-embed-text` |
 | `collection_name` | string | The name of the ChromaDB vector database collection to use for the LLM server. | `false` | `langchain_chroma_collection` |
-| `delete_missing_embeddings` | boolean | Whether to delete the embeddings for files that are no longer present in the workspace. | `false` | `false` |
+| `delete_missing_embeddings` | boolean | Whether to delete the embeddings for files that are no longer present in the workspace. | `false` | `true` |
 | `state_schema` | object | The schema for the workflow state. | `false` | `{"type": "object", "properties": {"input": {"type": "string"},"final_output": {"type": "string"}}, "required": ["input","final_output"]}` |
 | `agents` | object[] | The agents used in the workflow. | `true` | [Agent](#agent) |
 | `orchestrator` | object | The orchestrator agent configuration. | `false` | [Orchestrator](#orchestrator) |
@@ -231,9 +233,33 @@ These are the environment variables that are used in the MCP server. You can set
 | `WORKSPACE_PATH` | string | The workspace path to the files to read. | `true` | `${workspaceFolder}` |
 | `WORKFLOW_CONFIG_PATH` | string | The path to the config file. | `true` | `${workspaceFolder}/PATH_TO_YOUR_CONFIG/config.json` |
 
-## Custom Embeddings
+## GitHub Copilot Tools
 
-- Coming soon!
+### `display_graph`
+
+Generates a graph image from the workflow configuration and saves it to a `graph.png` file in the workspace folder. This is useful for visualizing the workflow and understanding the connections between agents.
+
+### `start_workflow`
+
+This tool is used to start the Agentic Workflow. It takes a prompt as input and returns the result of the workflow.
+
+### `embed_files`
+
+This tool creates embeddings for one or more files and stores them in the local ChromaDB vector database. These embeddings can be used using the `retrieve_embeddings` tool in the agent configuration.
+
+## Custom Embeddings for RAG
+
+Custom Embeddings for your local files can be created using the `embed_files` tool.
+
+This tool creates embeddings for one or more files and stores them in the local ChromaDB vector database.
+
+The local `chroma_vector_db` vector database is created in the workspace folder. You can add it to your `.gitignore` file to avoid committing it to your repository.
+
+If the absolute path to the file is not provided, the tool will look for the file in the workspace folder. The `workspace_path` variable is set to `${workspaceFolder}` by default, which is the path to your workspace folder.
+
+The embeddings are automatically created, updated and deleted when invoking the `embed_files` tool. `delete_missing_embeddings` is set to `true` by default. This means that if a file is deleted from the workspace, its embedding will be deleted from the vector database next time the `embed_files` tool is invoked.
+
+The local embeddings can be made available to any agent in the chain by using the `retrieve_embeddings` tool in the agent configuration. This tool will retrieve the embeddings from the local vector database and use them to answer questions.
 
 ## Local LLM Tools
 
@@ -287,19 +313,13 @@ Performs a web search using DuckDuckGo and returns the results.
 | `query` | string | The search query. | `true` | `""` |
 | `max_results` | integer | The maximum number of results to return. | `false` | `5` |
 
-## GitHub Copilot Tools
+### `retrieve_embeddings`
 
-### `display_graph`
+Fetches the embeddings from the local vector database and uses them to answer questions.
 
-Generates a graph image from the workflow configuration and saves it to a `graph.png` file in the workspace folder. This is useful for visualizing the workflow and understanding the connections between agents.
-
-### `start_workflow`
-
-This tool is used to start the Agentic Workflow. It takes a prompt as input and returns the result of the workflow.
-
-### `embed_files` - Coming soon
-
-This tools creates embeddings for one or more files and store them in the local ChromaDB vector database. These embeddings can be used for various tasks such as semantic search, clustering, and classification as part of the workflow and can be sent to the LLM server for processing.
+| Item | Type | Description | Required | Defaults |
+| --- | --- | --- | --- | --- |
+| `input` | string | The input to the agent. | `true` | `""` |
 
 ## Troubleshooting
 

@@ -139,5 +139,5 @@ class AppContext:
     vectorstore: VectorStore
     llm: BaseLLM
     retriever: BaseRetriever
-    qa_chain: Chain
+    retrieval_chain: Chain
     workflow_config: WorkflowConfig

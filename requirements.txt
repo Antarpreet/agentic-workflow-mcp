@@ -3,6 +3,6 @@ mcp==1.6.0
 mcp[cli]
 uv==0.6.17
 langchain
-langchain-community
+langchain-chroma
 langchain-ollama
 langgraph

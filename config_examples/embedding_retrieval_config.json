@@ -1,0 +1,41 @@
+{
+    "default_model": "llama3.2:3b",
+    "default_temperature": 0.0,
+    "agents": [
+        {
+            "name": "RetrieverAgent",
+            "prompt": "You are a helpful assistant. Use the retrieve_embeddings tool to answer questions using the local knowledge base.",
+            "tools": [
+                "retrieve_embeddings"
+            ]
+        },
+        {
+            "name": "Summarizer",
+            "prompt": "Summarize the key points from the information provided.",
+            "tools": []
+        },
+        {
+            "name": "Emailer",
+            "prompt": "Draft an email to the team sharing the summarized information.",
+            "tools": []
+        }
+    ],
+    "edges": [
+        {
+            "source": "__start__",
+            "target": "RetrieverAgent"
+        },
+        {
+            "source": "RetrieverAgent",
+            "target": "Summarizer"
+        },
+        {
+            "source": "Summarizer",
+            "target": "Emailer"
+        },
+        {
+            "source": "Emailer",
+            "target": "__end__"
+        }
+    ]
+}

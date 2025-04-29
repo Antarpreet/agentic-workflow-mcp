@@ -29,11 +29,19 @@ def update_embeddings(
         dict: Information about the update operation, including created and deleted embeddings
     """
     logs = []
+    workspace_path = os.getenv('WORKSPACE_PATH')
     log_message(logs, f"Updating embeddings for files: {file_paths}")
     
     # Convert single file path to list for uniform processing
     if isinstance(file_paths, str):
         file_paths = [file_paths]
+
+    # Prepend workspace_path to any relative file paths
+    if workspace_path:
+        file_paths = [
+            file_path if os.path.isabs(file_path) else os.path.join(workspace_path, file_path)
+            for file_path in file_paths
+        ]
     
     # Get resources from context
     vectorstore: VectorStore = ctx.request_context.lifespan_context.vectorstore
@@ -54,8 +62,8 @@ def update_embeddings(
                 log_message(logs, f"File not found: {file_path}")
                 continue
             
-            # Read file content
-            content = read_file(file_path, ctx)
+            # Read file content using the LangChain BaseTool's invoke method
+            content = read_file.invoke({"file_path": file_path, "workspace_path": workspace_path})
             
             # Generate a unique ID for the document based on content and path
             doc_id = hashlib.md5((file_path + content).encode()).hexdigest()

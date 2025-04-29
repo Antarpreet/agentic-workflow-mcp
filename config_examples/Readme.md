@@ -10,6 +10,7 @@
 - [Routers](#routers)
 - [Orchestrator-Worker](#orchestrator-worker)
 - [Complex Combined Config](#complex-combined-config)
+- [Local Embedding Retriever](#local-embedding-retriever)
 
 ## Sequential
 
@@ -68,3 +69,9 @@ But scientists say the reefs and the corals are not all dead yet and could still
 
 Corals are small marine animals that live in colonies with colourful symbiotic algae that give them their rainbow hues and supply them with most of their food. But when the water gets too warm for too long, the algae release toxic compounds, and the corals expel them, leaving behind a white skeleton — causing "bleaching."
 ```
+
+## Local Embedding Retriever
+
+![Local Embedding Retriever](./images/embedding_retrieval_config.png)
+
+Test prompt: `Use MCP tool to start workflow to create an email about this MCP Server"`

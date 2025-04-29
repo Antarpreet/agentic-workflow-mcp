@@ -13,4 +13,4 @@ dist/
 *.log
 *.sqlite3
 *.db
-.vscode/
+chroma_vector_db/
