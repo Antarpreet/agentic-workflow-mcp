@@ -74,4 +74,10 @@ Corals are small marine animals that live in colonies with colourful symbiotic a
 
 ![Local Embedding Retriever](./images/embedding_retrieval_config.png)
 
-Test prompt: `Use MCP tool to start workflow to create an email about Agentic Workflow Server if it has custom embedding support`
+Test prompt:
+
+```plaintext
+1. Use MCP tool to embed files #file:Readme.md
+
+2. Use MCP tool to start workflow to create an email about Agentic Workflow Server if it has custom embedding support
+```
