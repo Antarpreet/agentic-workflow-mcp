@@ -1,2 +1,16 @@
-__pycache__
-*.env
+# .gitignore
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.swp
+.env
+.DS_Store
+*.egg-info/
+.eggs/
+build/
+dist/
+*.log
+*.sqlite3
+*.db
+.vscode/
