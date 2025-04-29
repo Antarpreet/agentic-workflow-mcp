@@ -149,7 +149,7 @@ For supported workflow example configurations, see the [Config Examples](config_
 | `name` | string | The name of the agent. | `true` | `Orchestrator Agent` |
 | `model_name` | string | The model to use for the agent. If different from the default model. | `false` | `llama3.2:3b` |
 | `temperature` | number | The temperature to use for the agent. If different from the default temperature. | `false` | `0.0` |
-| `prompt` | string | The prompt to use for the agent. This takes precedence over `prompt_file`. | `true` | `You are an agent that is responsible for orchestrating the workflow and calling the other agents as needed, depending on the user prompt. You will call the other agents in parallel and wait for their responses before proceeding to the next step. You will also call the Aggregator Agent in the end to aggregate the results from the other agents and return the final result to Github Copilot.` |
+| `prompt` | string | The prompt to use for the agent. This takes precedence over `prompt_file`. | `true` | `You are an agent that orchestrates the workflow.` |
 | `prompt_file` | string | Either the absolute path to the prompt file or path to the prompt file in the format `agentic-workflow-mcp/YOUR_PROMPT_FILE_NAME` if the prompt file is added to the `agentic-workflow-mcp` in this repo. | `false` | `prompt.txt` |
 | `output_decision_keys` | string[] | The keys in the output that will be used in the workflow state. | `false` | `["decision_key"]` |
 | `output_format` | object | The output format for the agent. | `false` | `{"type": "object", "properties": {"response": {"type": "string"}}, "required": ["response"]}` |
