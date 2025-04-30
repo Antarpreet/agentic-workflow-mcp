@@ -9,7 +9,7 @@ from langchain.schema.messages import AIMessage, HumanMessage, SystemMessage
 from langchain.tools import  StructuredTool
 from mcp.server.fastmcp import Context
 
-from tools.file_system import read_file, write_file
+from tools.file_system import list_files, read_file, read_multiple_files, write_file
 from tools.web_search import web_search
 from tools.embedding_retriever import retrieve_embeddings
 from core.log import log_message
@@ -372,6 +372,10 @@ def add_tools(agent_config: AgentConfig, agent_name: str, logs: list) -> list:
         # Assumes tool functions are accessible in the current scope (e.g., imported)
         if tool_name == "read_file":
             agent_tools.append(tool_function if tool_function else read_file)
+        elif tool_name == "read_multiple_files":
+            agent_tools.append(tool_function if tool_function else read_multiple_files)
+        elif tool_name == "list_files":
+            agent_tools.append(tool_function if tool_function else list_files)
         elif tool_name == "write_file":
             agent_tools.append(tool_function if tool_function else write_file)
         elif tool_name == "web_search":
@@ -402,6 +406,7 @@ def add_nodes(graph: StateGraph, agents: list, workflow_config: WorkflowConfig, 
     Returns:
         None
     """
+    workspace_path = os.getenv('WORKSPACE_PATH', '.')
     for agent_config in agents:
         agent_name = agent_config["name"]
         model_name = agent_config.get("model_name", None)
@@ -430,6 +435,9 @@ def add_nodes(graph: StateGraph, agents: list, workflow_config: WorkflowConfig, 
             # Read the prompt from a file if specified
             prompt_file_path = agent_config["prompt_file"]
             try:
+                # Prepend workspace_path if not absolute
+                if not os.path.isabs(prompt_file_path):
+                    prompt_file_path = os.path.join(workspace_path, prompt_file_path)
                 with open(prompt_file_path, "r") as file:
                     prompt_template = file.read()
                 log_message(logs, f"Loaded prompt from file for {agent_name}: {prompt_file_path}")
