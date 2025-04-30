@@ -18,7 +18,7 @@
             "tools": []
         },
         {
-            "name": "AggregatorAgent",
+            "name": "FinalAgent",
             "prompt": "You are an agent that aggregates information from other agents. Summarize the information provided as input and provide a final output in less than 100 words.",
             "tools": []
         }
