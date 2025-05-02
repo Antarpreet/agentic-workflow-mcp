@@ -6,6 +6,7 @@ For supported workflow example configurations, see the [Config Examples](config_
 
 ## Table of Contents
 
+- [Articles](#articles)
 - [Prerequisites](#prerequisites)
 - [Installation](#installation)
 - [Config Settings](#config-settings)
@@ -15,6 +16,11 @@ For supported workflow example configurations, see the [Config Examples](config_
 - [Custom Embeddings for RAG](#custom-embeddings-for-rag)
 - [Local LLM Tools](#local-llm-tools)
 - [Troubleshooting](#troubleshooting)
+
+## Articles
+
+- [🧠 How to Set Up a Local Agentic Workflow with MCP and Ollama (Without Losing Your Mind)](https://medium.com/@antarpreetsingh/how-to-set-up-a-local-agentic-workflow-with-mcp-and-ollama-95864d30f462)
+- [🧠Create Vector Embeddings for Your Local Agentic Workflow Using an MCP Server (The easy way)](https://medium.com/@antarpreetsingh/create-vector-embeddings-for-your-local-agentic-workflow-using-an-mcp-server-0e424e2cc6b7)
 
 ## Prerequisites
 
