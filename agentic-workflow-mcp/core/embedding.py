@@ -6,6 +6,8 @@ from typing import List, Optional, Union
 from chromadb import ClientAPI
 from langchain.schema.vectorstore import VectorStore
 from mcp.server.fastmcp import Context
+from sklearn.decomposition import PCA
+import plotly.express as px
 
 from tools.file_system import read_file
 from core.log import log_message
@@ -140,3 +142,102 @@ def update_embeddings(
         "document_ids": document_ids,
         "logs": logs
     }
+
+
+def visualize(ctx: Context, collection_name="langchain_chroma_collection"):
+    """
+    Visualize embeddings from a ChromaDB collection using PCA and Plotly.
+
+    Args:
+        ctx: The MCP context containing application resources
+        collection_name: Name of the ChromaDB collection to visualize.
+
+    This function connects to the ChromaDB database using the provided context,
+    retrieves embeddings, reduces their dimensionality using PCA, and displays
+    an interactive 2D or 3D plot using Plotly.
+    """
+    # Connect to the ChromaDB database and load the collection
+    chroma = ctx.request_context.lifespan_context.chroma_client
+    collection = chroma.get_collection(collection_name)
+
+    print("Collection name:", collection.name)
+    print("Number of embeddings:", collection.count())
+
+    # Retrieve the embeddings, document IDs, and metadatas from the collection
+    result = collection.get(include=['embeddings', 'metadatas'])
+    embeddings = result['embeddings']
+    docs = collection.get(include=['documents'])['ids']
+    metadatas = result['metadatas']
+
+    # Use absolute path with filename as dots if available, otherwise fallback to id
+    point_labels = []
+    for i, metadata in enumerate(metadatas):
+        if isinstance(metadata, dict) and "source" in metadata and "filename" in metadata:
+            # Replace path separators with dots for the label
+            abs_path = metadata["source"]
+            label = abs_path.replace("\\", ".").replace("/", ".")
+            point_labels.append(label)
+        elif isinstance(metadata, dict) and "filename" in metadata:
+            point_labels.append(metadata["filename"])
+        else:
+            point_labels.append(docs[i])
+
+    import numpy as np
+    embeddings = np.array(embeddings)
+
+    print("Embeddings shape:", embeddings.shape)
+    print("Collection columns:", result.keys())
+    print("Document label example:", point_labels[0])
+
+    n_samples, n_features = embeddings.shape
+
+    print("Number of samples:", n_samples)
+    print("Number of features:", n_features)
+
+    if n_samples == 0 or n_features == 0:
+        raise ValueError("No embeddings found in the collection.")
+
+    if n_samples < 2:
+        raise ValueError("At least 2 samples are required for PCA visualization.")
+
+    n_components = min(3, n_samples, n_features)
+
+    from sklearn.decomposition import PCA
+    pca = PCA(n_components=n_components)
+    vis_dims = pca.fit_transform(embeddings)
+
+    print("PCA components shape:", vis_dims.shape)
+
+    if (vis_dims == 0).all():
+        raise ValueError("PCA resulted in all-zero components. Not enough variance in the data to visualize.")
+
+    explained_var = pca.explained_variance_ratio_ * 100  # as percentage
+
+    labels = {}
+    for i in range(n_components):
+        labels[f"{'xyz'[i]}"] = f"PCA Component {i+1} ({explained_var[i]:.1f}% var)"
+
+    import plotly.express as px
+    if n_components == 3:
+        fig = px.scatter_3d(
+            x=vis_dims[:, 0],
+            y=vis_dims[:, 1],
+            z=vis_dims[:, 2],
+            text=point_labels,
+            labels=labels,
+            title='3D PCA of Embeddings'
+        )
+    elif n_components == 2:
+        fig = px.scatter(
+            x=vis_dims[:, 0],
+            y=vis_dims[:, 1],
+            text=point_labels,
+            labels=labels,
+            title='2D PCA of Embeddings'
+        )
+    else:
+        raise ValueError("Not enough samples or features for 2D or 3D visualization.")
+
+    fig.show()
+
+    return "Visualization complete. Check your browser for the interactive plot."

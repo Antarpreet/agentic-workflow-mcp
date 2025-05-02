@@ -122,6 +122,8 @@ For supported workflow example configurations, see the [Config Examples](config_
     Use MCP Tools to start a workflow to YOUR_PROMPT_HERE.
     // This will create embeddings for the files passed in the prompt.
     Use MCP tool to embed files #file:Readme.md
+    // This will create a 2D or 3D visualization of the embeddings.
+    Use MCP tool to visualize embeddings.
     ```
 
 ## Config Settings
@@ -247,6 +249,10 @@ This tool is used to start the Agentic Workflow. It takes a prompt as input and 
 
 This tool creates embeddings for one or more files and stores them in the local ChromaDB vector database. These embeddings can be used using the `retrieve_embeddings` tool in the agent configuration.
 
+### `visualize_embeddings`
+
+Generates a 2D or 3D visualization of the embeddings in the local ChromaDB vector database. This is useful for understanding the distribution of the embeddings and identifying clusters or patterns in the data.
+
 ## Custom Embeddings for RAG
 
 Custom Embeddings for your local files can be created using the `embed_files` tool.
@@ -260,6 +266,8 @@ If the absolute path to the file is not provided, the tool will look for the fil
 The embeddings are automatically created, updated and deleted when invoking the `embed_files` tool. `delete_missing_embeddings` is set to `true` by default. This means that if a file is deleted from the workspace, its embedding will be deleted from the vector database next time the `embed_files` tool is invoked.
 
 The local embeddings can be made available to any agent in the chain by using the `retrieve_embeddings` tool in the agent configuration. This tool will retrieve the embeddings from the local vector database and use them to answer questions.
+
+You can visualize the embeddings using the `visualize_embeddings` tool. This will create a 2D or 3D visualization of the embeddings in the local ChromaDB vector database. This is useful for understanding the distribution of the embeddings and identifying clusters or patterns in the data.
 
 ## Local LLM Tools
 

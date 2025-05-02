@@ -6,3 +6,5 @@ langchain
 langchain-chroma
 langchain-ollama
 langgraph
+scikit-learn
+plotly

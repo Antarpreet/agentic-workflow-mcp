@@ -12,7 +12,7 @@ from langchain_chroma import Chroma
 from langchain_ollama import ChatOllama, OllamaEmbeddings
 from mcp.server.fastmcp import FastMCP
 
-from core.embedding import update_embeddings
+from core.embedding import update_embeddings, visualize
 from core.graph import generate_graph_from_workflow
 from core.log import log_message
 from core.model import DEFAULT_WORKFLOW_CONFIG, AppContext, WorkflowConfig
@@ -216,3 +216,22 @@ def embed_files(file_paths: Union[str, List[str]]) -> dict:
         collection_name=collection_name, 
         delete_missing=delete_missing_embeddings
     )
+
+@mcp.tool()
+def visualize_embeddings() -> str:
+    """
+    Visualize embeddings from a ChromaDB collection using PCA and Plotly.
+    
+    Args:
+        ctx: The MCP context containing application resources
+        collection_name: Name of the ChromaDB collection to visualize.
+
+    Returns:
+        str: Path to the generated visualization image file.
+    """
+    ctx = mcp.get_context()
+    workflow_config: WorkflowConfig = ctx.request_context.lifespan_context.workflow_config
+    collection_name = workflow_config.get("collection_name", DEFAULT_WORKFLOW_CONFIG["collection_name"])
+    log_message([], f"Visualizing embeddings from collection: {collection_name}")
+    # Call the visualize_embeddings function to create the visualization
+    return visualize(ctx, collection_name=collection_name)
