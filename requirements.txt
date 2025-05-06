@@ -1,10 +1,11 @@
 duckduckgo_search
-mcp==1.6.0
+mcp
 mcp[cli]
-uv==0.6.17
+uv
 langchain
 langchain-chroma
 langchain-ollama
 langgraph
 scikit-learn
 plotly
+pandas

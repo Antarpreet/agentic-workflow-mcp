@@ -48,6 +48,12 @@ For supported workflow example configurations, see the [Config Examples](config_
 
     > If you are using tools in your workflow, please ensure the model you are using supports them: [Models supporting tools](https://ollama.com/search?c=tools)
 
+    If you will be using local vector embeddings in your workflow, you can also start the `nomic-embed-text` model using the following command:
+
+    ```bash
+    ollama run nomic-embed-text
+    ```
+
 3. Install the required Python packages:
 
    ```bash

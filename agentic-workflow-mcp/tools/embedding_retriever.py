@@ -1,23 +1,47 @@
-from langchain.tools import tool
-from mcp.server.fastmcp import Context
+from typing import List, Union, Any
 
+from langchain.tools import tool
+
+from core.embedding import update_embeddings
 from core.log import log_message
 
 @tool
-def retrieve_embeddings(input: str, logs: list = [], ctx: Context = None) -> str:
+def retrieve_embeddings(input: str, logs: list = [], retrieval_chain: Any = None, ctx: Any = None) -> str:
     """
     Answers a question using the Retrieval chain and local ChromaDB vectors.
 
     Args:
         input (str): The question to answer.
         logs (list): A list to store log messages.
-        ctx (Context, optional): The MCP context containing application resources.
+        retrieval_chain (Any, optional): The Retrieval chain to use. If not provided, it will be retrieved from the context.
+        ctx (Any, optional): The MCP context containing application resources.
 
     Returns:
         str: The answer from the Retrieval chain.
     """
     log_message(logs, f"Retrieval input: {input}")
-    retrieval_chain = ctx.request_context.lifespan_context.retrieval_chain
-    response = retrieval_chain.invoke({"input": input})
+    if retrieval_chain:
+        local_retrieval_chain = retrieval_chain
+    else:
+        local_retrieval_chain = ctx.retrieval_chain
+    response = local_retrieval_chain.invoke({"input": input})
     log_message(logs, f"Retrieval response: {response}")
     return response["result"] if isinstance(response, dict) and "result" in response else str(response)
+
+
+@tool
+def modify_embeddings(file_paths: Union[str, List[str]] = [], vectorstore: Any = None, ctx: Any = None) -> dict:
+    """
+    Updates the embeddings for the specified files.
+
+    Args:
+        file_paths (Union[str, List[str]]): A single file path or a list of file paths to update embeddings for.
+        vectorstore (Any, optional): The vector store to use. If not provided, it will be retrieved from the context.
+        ctx (Any, optional): The MCP context containing application resources.
+
+    Returns:
+        dict: Information about the update operation.
+    """
+    log_message([], f"Updating embeddings for files: {file_paths}")
+    # Call the update_embeddings function to create or update embeddings
+    return update_embeddings(file_paths=file_paths, ctx=ctx, vectorstore=vectorstore)

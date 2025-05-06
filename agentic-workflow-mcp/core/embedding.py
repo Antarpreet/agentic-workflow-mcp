@@ -1,35 +1,30 @@
 import hashlib
 import os
 from datetime import datetime
-from typing import List, Optional, Union
+from typing import List, Union
 
 from chromadb import ClientAPI
 from langchain.schema.vectorstore import VectorStore
-from mcp.server.fastmcp import Context
-from sklearn.decomposition import PCA
-import plotly.express as px
 
+from core.model import AppContext, WorkflowConfig, DEFAULT_WORKFLOW_CONFIG
 from tools.file_system import read_file
 from core.log import log_message
 
-def update_embeddings(
-    file_paths: Union[str, List[str]], 
-    ctx: Context, 
-    collection_name: Optional[str] = None,
-    delete_missing: bool = True
-) -> dict:
+def update_embeddings(file_paths: Union[str, List[str]], ctx: AppContext, vectorstore: VectorStore = None) -> dict:
     """
     Update embeddings for files by creating new ones and deleting outdated ones.
     
     Args:
         file_paths: Path to a file or list of file paths to embed
         ctx: The MCP context containing application resources
-        collection_name: Optional name for the ChromaDB collection
-        delete_missing: Whether to delete embeddings for files that no longer exist
+        vectorstore: The vector store to use. If not provided, it will be retrieved from the context.
     
     Returns:
         dict: Information about the update operation, including created and deleted embeddings
     """
+    workflow_config: WorkflowConfig = ctx.workflow_config
+    collection_name = workflow_config.get("collection_name", DEFAULT_WORKFLOW_CONFIG["collection_name"])
+    delete_missing = workflow_config.get("delete_missing_embeddings", DEFAULT_WORKFLOW_CONFIG["delete_missing_embeddings"])
     logs = []
     workspace_path = os.getenv('WORKSPACE_PATH')
     log_message(logs, f"Updating embeddings for files: {file_paths}")
@@ -46,8 +41,11 @@ def update_embeddings(
         ]
     
     # Get resources from context
-    vectorstore: VectorStore = ctx.request_context.lifespan_context.vectorstore
-    chroma_client: ClientAPI = ctx.request_context.lifespan_context.chroma_client
+    chroma_client: ClientAPI = ctx.chroma_client
+    local_vectorstore: VectorStore = ctx.vectorstore
+
+    if vectorstore:
+        local_vectorstore = vectorstore
     
     # Get the collection
     collection = chroma_client.get_collection(collection_name)
@@ -111,7 +109,7 @@ def update_embeddings(
     # Create new embeddings if needed
     created_count = 0
     if documents:
-        vectorstore.add_texts(
+        local_vectorstore.add_texts(
             texts=documents,
             metadatas=metadata_list,
             ids=document_ids
@@ -144,7 +142,7 @@ def update_embeddings(
     }
 
 
-def visualize(ctx: Context, collection_name="langchain_chroma_collection"):
+def visualize(ctx: AppContext, collection_name: str = None) -> str:
     """
     Visualize embeddings from a ChromaDB collection using PCA and Plotly.
 
@@ -157,7 +155,7 @@ def visualize(ctx: Context, collection_name="langchain_chroma_collection"):
     an interactive 2D or 3D plot using Plotly.
     """
     # Connect to the ChromaDB database and load the collection
-    chroma = ctx.request_context.lifespan_context.chroma_client
+    chroma = ctx.chroma_client
     collection = chroma.get_collection(collection_name)
 
     print("Collection name:", collection.name)

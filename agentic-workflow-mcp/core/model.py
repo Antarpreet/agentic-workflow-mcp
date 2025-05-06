@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import TypedDict, Optional, List, Dict, Any
+from typing_extensions import TypedDict, Optional, List, Dict
 
 from chromadb import Client
 from langchain.chains.base import Chain
@@ -17,6 +17,7 @@ DEFAULT_WORKFLOW_CONFIG = {
     "collection_name": "langchain_chroma_collection",
     "default_orchestrator_completion_condition": "lambda state: state.get('final_output') is not None",
     "delete_missing_embeddings": True,
+    "log_file_path": "logs.txt",
     "state_schema": {
         "type": "object",
         "properties": {
@@ -31,7 +32,13 @@ DEFAULT_WORKFLOW_CONFIG = {
             "input",
             "final_output"
         ]
-    }
+    },
+    "rag_prompt_template": """Answer the following question based only on the provided context:
+        <context>
+        {context}
+        </context>
+        Question: {input}""",
+    "vector_directory": "chroma_vector_db"
 }
 
 
@@ -133,7 +140,6 @@ class WorkflowConfig(TypedDict):
 @dataclass
 class AppContext:
     """Holds application-wide resources."""
-    server: FastMCP
     embedding_model: Embeddings
     chroma_client: Client
     vectorstore: VectorStore
@@ -141,3 +147,4 @@ class AppContext:
     retriever: BaseRetriever
     retrieval_chain: Chain
     workflow_config: WorkflowConfig
+    server: Optional[FastMCP] = None

@@ -1,7 +1,6 @@
 import json
-from operator import itemgetter
 import os
-from typing import Optional, TypedDict
+from typing_extensions import Optional, TypedDict
 
 from core.model import DEFAULT_WORKFLOW_CONFIG, WorkflowConfig
 

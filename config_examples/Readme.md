@@ -67,7 +67,7 @@ The new figure is far worse than previous events that hit 21 to 68 per cent of r
 
 But scientists say the reefs and the corals are not all dead yet and could still  bounce back if people take the right steps, including conservation and cutting greenhouse gas emissions.
 
-Corals are small marine animals that live in colonies with colourful symbiotic algae that give them their rainbow hues and supply them with most of their food. But when the water gets too warm for too long, the algae release toxic compounds, and the corals expel them, leaving behind a white skeleton — causing "bleaching."
+Corals are small marine animals that live in colonies with colorful symbiotic algae that give them their rainbow hues and supply them with most of their food. But when the water gets too warm for too long, the algae release toxic compounds, and the corals expel them, leaving behind a white skeleton — causing "bleaching."
 ```
 
 ## Local Embedding Retriever
@@ -80,4 +80,14 @@ Test prompt:
 1. Use MCP tool to embed files #file:Readme.md
 
 2. Use MCP tool to start workflow to create an email about Agentic Workflow Server if it has custom embedding support
+```
+
+## Local Embedding Updater
+
+![Local Embedding Updater](./images/embedding_updater_config.png)
+
+Test prompt:
+
+```plaintext
+Use MCP tool to start workflow for CODE_OF_CONDUCT.md
 ```
