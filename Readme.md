@@ -149,6 +149,8 @@ For supported workflow example configurations, see the [Config Examples](config_
 | `embedding_model` | string | The embedding model to use for the LLM server. | `false` | `nomic-embed-text` |
 | `collection_name` | string | The name of the ChromaDB vector database collection to use for the LLM server. | `false` | `langchain_chroma_collection` |
 | `delete_missing_embeddings` | boolean | Whether to delete the embeddings for files that are no longer present in the workspace. | `false` | `true` |
+| `vector_directory` | string | The directory to store the vector database. | `false` | `chroma_vector_db` |
+| `rag_prompt_template` | string | The prompt template for the RAG agent. | `false` | `Answer the following question based only on the provided context: <context> {context} </context> Question: {input}` |
 | `state_schema` | object | The schema for the workflow state. | `false` | `{"type": "object", "properties": {"input": {"type": "string"},"final_output": {"type": "string"}}, "required": ["input","final_output"]}` |
 | `agents` | object[] | The agents used in the workflow. | `true` | [Agent](#agent) |
 | `orchestrator` | object | The orchestrator agent configuration. | `false` | [Orchestrator](#orchestrator) |
@@ -171,6 +173,7 @@ For supported workflow example configurations, see the [Config Examples](config_
 | `output_format` | object | The output format for the agent. | `false` | `{"type": "object", "properties": {"response": {"type": "string"}}, "required": ["response"]}` |
 | `tools` | string[] | The tools to use for the agent. | `false` | `["read_file"]` |
 | `tool_functions` | object[] | The functions to use for the tools. | `false` | `{"read_file":` [Tool](#tool)`}` |
+| `embeddings_collection_name` | string | The name of the ChromaDB vector database collection to use for the agent. | `false` | `langchain_chroma_collection` |
 
 ### Tool
 

@@ -30,13 +30,14 @@ def retrieve_embeddings(input: str, logs: list = [], retrieval_chain: Any = None
 
 
 @tool
-def modify_embeddings(file_paths: Union[str, List[str]] = [], vectorstore: Any = None, ctx: Any = None) -> dict:
+def modify_embeddings(file_paths: Union[str, List[str]] = [], vectorstore: Any = None, collection_name: str = None, ctx: Any = None) -> dict:
     """
     Updates the embeddings for the specified files.
 
     Args:
         file_paths (Union[str, List[str]]): A single file path or a list of file paths to update embeddings for.
         vectorstore (Any, optional): The vector store to use. If not provided, it will be retrieved from the context.
+        collection_name (str, optional): The name of the collection to use. If not provided, it will be retrieved from the context. Do not provide this if you want to use the default collection name.
         ctx (Any, optional): The MCP context containing application resources.
 
     Returns:
@@ -44,4 +45,4 @@ def modify_embeddings(file_paths: Union[str, List[str]] = [], vectorstore: Any =
     """
     log_message([], f"Updating embeddings for files: {file_paths}")
     # Call the update_embeddings function to create or update embeddings
-    return update_embeddings(file_paths=file_paths, ctx=ctx, vectorstore=vectorstore)
+    return update_embeddings(file_paths=file_paths, ctx=ctx, vectorstore=vectorstore, collection_name=collection_name)

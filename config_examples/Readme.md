@@ -89,5 +89,5 @@ Test prompt:
 Test prompt:
 
 ```plaintext
-Use MCP tool to start workflow for CODE_OF_CONDUCT.md
+Use MCP tool to start workflow for folder `./config_examples`
 ```

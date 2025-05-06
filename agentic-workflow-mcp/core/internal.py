@@ -152,13 +152,13 @@ async def process(ctx: AppContext, user_prompt: str) -> dict:
     return response
 
 
-async def embed(ctx: AppContext, file_paths: Union[str, List[str]]) -> dict:
+async def embed(ctx: AppContext, file_paths: List[str]) -> dict:
     """
-    Embeds the given text using the embedding model.
+    Embeds the given files or folder using the embedding model.
 
     Args:
         ctx (AppContext): The application context containing the embedding model.
-        text (str): The text to embed.
+        file_paths (List[str]): A list of file paths or folders to embed.
 
     Returns:
         dict: The embedded text.

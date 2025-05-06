@@ -14,9 +14,10 @@ from langchain.schema.messages import AIMessage, HumanMessage, SystemMessage
 from langchain.schema.vectorstore import VectorStore
 from langchain.tools import  StructuredTool
 
+from tools.api_fetch import api_fetch
+from tools.embedding_retriever import retrieve_embeddings, modify_embeddings
 from tools.file_system import list_files, read_file, read_multiple_files, write_file, write_file_lines, append_file, append_file_lines
 from tools.web_search import web_search
-from tools.embedding_retriever import retrieve_embeddings, modify_embeddings
 from core.log import log_message
 from core.model import DefaultWorkflowState, DEFAULT_WORKFLOW_CONFIG, WorkflowConfig, AgentConfig, AppContext
 from core.util import typed_dict_from_json_schema, get_full_schema, ensure_utf8
@@ -179,15 +180,18 @@ def handle_tool_calls(
     """
     if hasattr(llm_response, "tool_calls") and llm_response.tool_calls:
         tool_results = []
+        collection_name = agent_config.get("embeddings_collection_name", None)
         for tool_call in llm_response.tool_calls:
             tool_name = tool_call.get("name")
             arguments = tool_call.get("args", {})
             arguments["workspace_path"] = workspace_path
             arguments["logs"] = logs
             arguments["ctx"] = ctx
-            if agent_config.get("embeddings_collection_name"):
+            if collection_name:
                 arguments["retrieval_chain"] = retrieval_chain
                 arguments["vectorstore"] = vectorstore
+                arguments["collection_name"] = collection_name
+
             tool_func = next(
                 (t for t in tools if getattr(t, "name", None) == tool_name or getattr(t, "__name__", None) == tool_name),
                 None
@@ -408,6 +412,8 @@ def add_tools(agent_config: AgentConfig, agent_name: str, logs: list) -> list:
             agent_tools.append(tool_function if tool_function else append_file_lines)
         elif tool_name == "web_search":
             agent_tools.append(tool_function if tool_function else web_search)
+        elif tool_name == "api_fetch":
+            agent_tools.append(tool_function if tool_function else api_fetch)
         elif tool_name == "retrieve_embeddings":
             agent_tools.append(tool_function if tool_function else retrieve_embeddings)
         elif tool_name == "modify_embeddings":
@@ -438,6 +444,7 @@ def add_nodes(graph: StateGraph, agents: list, workflow_config: WorkflowConfig, 
         agent_name = agent_config["name"]
         model_name = agent_config.get("model_name", None)
         output_format = agent_config.get("output_format", None)
+        collection_name = agent_config.get("embeddings_collection_name", None)
         log_message(logs, f"Configuring agent node: {agent_name}")
 
         # Determine the LLM for this agent node
@@ -456,13 +463,13 @@ def add_nodes(graph: StateGraph, agents: list, workflow_config: WorkflowConfig, 
         
         # Check if the agent has a specific embeddings collection name
         # If so, initialize a new vectorstore and retrieval chain for RAG
-        if agent_config.get("embeddings_collection_name"):
+        if collection_name:
             persist_directory = workflow_config.get("vector_directory", DEFAULT_WORKFLOW_CONFIG["vector_directory"])
             rag_prompt_template = workflow_config.get("rag_prompt_template", DEFAULT_WORKFLOW_CONFIG["rag_prompt_template"])
             # Initialize Chroma as a LangChain vectorstore using Ollama embeddings
             vectorstore = Chroma(
                 client=ctx.chroma_client,
-                collection_name=agent_config.get("embeddings_collection_name"),
+                collection_name=collection_name,
                 embedding_function=ctx.embedding_model,
                 persist_directory=persist_directory
             )
@@ -475,8 +482,8 @@ def add_nodes(graph: StateGraph, agents: list, workflow_config: WorkflowConfig, 
             document_chain = create_stuff_documents_chain(model, prompt)
             retrieval_chain = create_retrieval_chain(retriever, document_chain)
         else:
-            retrieval_chain = ctx.retrieval_chain
             vectorstore = ctx.vectorstore
+            retrieval_chain = ctx.retrieval_chain
 
         # Get the prompt template for the agent
         # Default to just passing the input if no prompt is specified

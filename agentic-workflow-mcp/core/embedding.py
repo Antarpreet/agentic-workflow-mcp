@@ -10,20 +10,23 @@ from core.model import AppContext, WorkflowConfig, DEFAULT_WORKFLOW_CONFIG
 from tools.file_system import read_file
 from core.log import log_message
 
-def update_embeddings(file_paths: Union[str, List[str]], ctx: AppContext, vectorstore: VectorStore = None) -> dict:
+def update_embeddings(
+        file_paths: List[str], ctx: AppContext, vectorstore: VectorStore = None, collection_name: str = None
+    ) -> dict:
     """
     Update embeddings for files by creating new ones and deleting outdated ones.
     
     Args:
-        file_paths: Path to a file or list of file paths to embed
+        file_paths: Path to list of file paths or folders to embed
         ctx: The MCP context containing application resources
         vectorstore: The vector store to use. If not provided, it will be retrieved from the context.
+        collection_name: Name of the ChromaDB collection to use. If not provided, it will be retrieved from the context.
     
     Returns:
         dict: Information about the update operation, including created and deleted embeddings
     """
     workflow_config: WorkflowConfig = ctx.workflow_config
-    collection_name = workflow_config.get("collection_name", DEFAULT_WORKFLOW_CONFIG["collection_name"])
+    local_collection_name = collection_name or workflow_config.get("collection_name", DEFAULT_WORKFLOW_CONFIG["collection_name"])
     delete_missing = workflow_config.get("delete_missing_embeddings", DEFAULT_WORKFLOW_CONFIG["delete_missing_embeddings"])
     logs = []
     workspace_path = os.getenv('WORKSPACE_PATH')
@@ -31,7 +34,12 @@ def update_embeddings(file_paths: Union[str, List[str]], ctx: AppContext, vector
     
     # Convert single file path to list for uniform processing
     if isinstance(file_paths, str):
-        file_paths = [file_paths]
+        # Handle case where file_paths is a string representation of a list
+        if file_paths.startswith("[") and file_paths.endswith("]"):
+            import ast
+            file_paths = ast.literal_eval(file_paths)
+        else:
+            file_paths = [file_paths]
 
     # Prepend workspace_path to any relative file paths
     if workspace_path:
@@ -39,7 +47,17 @@ def update_embeddings(file_paths: Union[str, List[str]], ctx: AppContext, vector
             file_path if os.path.isabs(file_path) else os.path.join(workspace_path, file_path)
             for file_path in file_paths
         ]
-    
+
+    # Expand folders to include all files recursively
+    expanded_file_paths = []
+    for file_path in file_paths:
+        if os.path.isdir(file_path):
+            for root, _, files in os.walk(file_path):
+                for fname in files:
+                    expanded_file_paths.append(os.path.join(root, fname))
+        else:
+            expanded_file_paths.append(file_path)
+    file_paths = expanded_file_paths
     # Get resources from context
     chroma_client: ClientAPI = ctx.chroma_client
     local_vectorstore: VectorStore = ctx.vectorstore
@@ -48,7 +66,7 @@ def update_embeddings(file_paths: Union[str, List[str]], ctx: AppContext, vector
         local_vectorstore = vectorstore
     
     # Get the collection
-    collection = chroma_client.get_collection(collection_name)
+    collection = chroma_client.get_collection(local_collection_name)
     
     # Process files to create or update embeddings
     documents = []
@@ -115,7 +133,7 @@ def update_embeddings(file_paths: Union[str, List[str]], ctx: AppContext, vector
             ids=document_ids
         )
         created_count = len(documents)
-        log_message(logs, f"Added/updated {created_count} documents in ChromaDB collection: {collection_name}")
+        log_message(logs, f"Added/updated {created_count} documents in ChromaDB collection: {local_collection_name}")
     
     # Delete embeddings for files that don't exist anymore
     deleted_count = 0

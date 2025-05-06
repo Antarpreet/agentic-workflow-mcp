@@ -7,7 +7,8 @@
             "prompt": "You are an agent that can modify the embeddings of the local knowledge base. Use the modify_embeddings tool to update the embeddings with new information.",
             "tools": [
                 "modify_embeddings"
-            ]
+            ],
+            "embeddings_collection_name": "knowledge_base"
         }
     ],
     "edges": [

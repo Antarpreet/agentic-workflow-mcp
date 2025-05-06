@@ -90,13 +90,12 @@ async def start_workflow(user_prompt: str) -> dict:
 
 
 @mcp.tool()
-async def embed_files(file_paths: Union[str, List[str]]) -> dict:
+async def embed_files(file_paths: List[str]) -> dict:
     """
-    Tool to create embeddings for one or more files and store them in the ChromaDB.
-    
+    Tool to create embeddings for one or more files or folders and store them in the ChromaDB.
+
     Args:
-        file_paths: Path to a file or list of file paths to embed
-        ctx: The MCP context containing application resources
+        file_paths: List of file/folder paths to embed
 
     Returns:
         dict: Information about the embedding operation
