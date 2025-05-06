@@ -1,10 +1,11 @@
 import hashlib
 import os
 from datetime import datetime
-from typing import List, Union
+from typing import List
 
 from chromadb import ClientAPI
 from langchain.schema.vectorstore import VectorStore
+import numpy as np
 
 from core.model import AppContext, WorkflowConfig, DEFAULT_WORKFLOW_CONFIG
 from tools.file_system import read_file
@@ -185,20 +186,14 @@ def visualize(ctx: AppContext, collection_name: str = None) -> str:
     docs = collection.get(include=['documents'])['ids']
     metadatas = result['metadatas']
 
-    # Use absolute path with filename as dots if available, otherwise fallback to id
+    # Use only the filename for the label, fallback to id if not available
     point_labels = []
     for i, metadata in enumerate(metadatas):
-        if isinstance(metadata, dict) and "source" in metadata and "filename" in metadata:
-            # Replace path separators with dots for the label
-            abs_path = metadata["source"]
-            label = abs_path.replace("\\", ".").replace("/", ".")
-            point_labels.append(label)
-        elif isinstance(metadata, dict) and "filename" in metadata:
+        if isinstance(metadata, dict) and "filename" in metadata:
             point_labels.append(metadata["filename"])
         else:
             point_labels.append(docs[i])
 
-    import numpy as np
     embeddings = np.array(embeddings)
 
     print("Embeddings shape:", embeddings.shape)
