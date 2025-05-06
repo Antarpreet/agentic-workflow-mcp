@@ -327,6 +327,36 @@ Writes the given content to a file. Creates directories if they don't exist.
 | `content` | string | The content to write to the file. | `true` | `""` |
 | `workspace_path` | string | The workspace path to the file to write to. | `false` | `${workspaceFolder}` |
 
+### `write_file_lines`
+
+Write lines content at the specified line numbers to a file. Creates directories if they don't exist.
+
+| Item | Type | Description | Required | Defaults |
+| --- | --- | --- | --- | --- |
+| `file_path` | string | The path to the file to write to. | `true` | `""` |
+| `lines` | object | The object containing line numbers as keys and content as values. | `true` | `{}` |
+| `workspace_path` | string | The workspace path to the file to write to. | `false` | `${workspaceFolder}` |
+
+### `append_file`
+
+Appends the given content to a file. Creates directories if they don't exist.
+
+| Item | Type | Description | Required | Defaults |
+| --- | --- | --- | --- | --- |
+| `file_path` | string | The path to the file to append to. | `true` | `""` |
+| `content` | string | The content to append to the file. | `true` | `""` |
+| `workspace_path` | string | The workspace path to the file to append to. | `false` | `${workspaceFolder}` |
+
+### `append_file_lines`
+
+Appends lines content at the specified line numbers to a file. Creates directories if they don't exist.
+
+| Item | Type | Description | Required | Defaults |
+| --- | --- | --- | --- | --- |
+| `file_path` | string | The path to the file to append to. | `true` | `""` |
+| `lines` | object | The object containing line numbers as keys and content as values. | `true` | `{}` |
+| `workspace_path` | string | The workspace path to the file to append to. | `false` | `${workspaceFolder}` |
+
 ### `web_search`
 
 Performs a web search using DuckDuckGo and returns the results.
@@ -336,6 +366,20 @@ Performs a web search using DuckDuckGo and returns the results.
 | `query` | string | The search query. | `true` | `""` |
 | `max_results` | integer | The maximum number of results to return. | `false` | `5` |
 
+### `api_fetch`
+
+Fetch data from an API endpoint.
+
+| Item | Type | Description | Required | Defaults |
+| --- | --- | --- | --- | --- |
+| `url` | string | The API endpoint URL. | `true` | `""` |
+| `method` | string | The HTTP method to use (GET, POST, etc.). | `false` | `GET` |
+| `headers` | object | The headers to include in the request. | `false` | `{}` |
+| `params` | object | The query parameters to include in the request. | `false` | `{}` |
+| `data` | object | The data to include in the request body. | `false` | `{}` |
+| `json` | object | The JSON data to include in the request body. | `false` | `{}` |
+| `timeout` | integer | The timeout for the request in seconds. | `false` | `10` |
+
 ### `retrieve_embeddings`
 
 Fetches the embeddings from the local vector database and uses them to answer questions.
@@ -343,6 +387,14 @@ Fetches the embeddings from the local vector database and uses them to answer qu
 | Item | Type | Description | Required | Defaults |
 | --- | --- | --- | --- | --- |
 | `input` | string | The input to the agent. | `true` | `""` |
+
+### `modify_embeddings`
+
+Updates the embeddings for the specified files.
+
+| Item | Type | Description | Required | Defaults |
+| --- | --- | --- | --- | --- |
+| `file_paths` | string[] | The paths to the files to update. | `true` | `[]` |
 
 ## Troubleshooting
 

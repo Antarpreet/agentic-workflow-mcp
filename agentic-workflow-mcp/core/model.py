@@ -17,7 +17,7 @@ DEFAULT_WORKFLOW_CONFIG = {
     "collection_name": "langchain_chroma_collection",
     "default_orchestrator_completion_condition": "lambda state: state.get('final_output') is not None",
     "delete_missing_embeddings": True,
-    "log_file_path": "logs.txt",
+    "log_file_path": "agentic-workflow-mcp/logs.txt",
     "state_schema": {
         "type": "object",
         "properties": {
