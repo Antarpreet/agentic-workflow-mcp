@@ -31,6 +31,9 @@ def resolve_path(file_path: str, workspace_path: str = None) -> str:
     Returns:
         str: The full path to the file.
     """
+    # Remove '/path/to/' from the file_path if present
+    if file_path.startswith("/path/to/"):
+        file_path = file_path[len("/path/to/"):]
     if workspace_path is None or os.path.isabs(file_path):
         return file_path
     full_path = os.path.join(workspace_path, file_path)

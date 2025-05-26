@@ -25,7 +25,7 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
         # Yield the context with all initialized resources
         yield context
     except Exception as e:
-        log_message([], f"Error initializing app context: {str(e)} {repr(e)}")
+        log_message([], f"Error: initializing app context: {str(e)} {repr(e)}")
         raise
     # Teardown code here (if needed, e.g., explicitly stopping services)
     # chroma_client.persist() # Chroma client might persist automatically depending on config
@@ -107,13 +107,12 @@ async def embed_files(file_paths: List[str]) -> dict:
 
 
 @mcp.tool()
-async def visualize_embeddings() -> str:
+async def visualize_embeddings(collection_name: str = None) -> str:
     """
     Visualize embeddings from a ChromaDB collection using PCA and Plotly.
-    
+
     Args:
-        ctx: The MCP context containing application resources
-        collection_name: Name of the ChromaDB collection to visualize.
+        collection_name (str, optional): Name of the ChromaDB collection to visualize. If not provided, uses the default from workflow config.
 
     Returns:
         str: Path to the generated visualization image file.
@@ -121,4 +120,4 @@ async def visualize_embeddings() -> str:
     ctx = mcp.get_context()
     app_ctx = ctx.request_context.lifespan_context
 
-    return await embed_visualize(app_ctx)
+    return await embed_visualize(app_ctx, collection_name)

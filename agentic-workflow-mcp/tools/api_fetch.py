@@ -35,5 +35,5 @@ def api_fetch(
         response.raise_for_status()
         return response.json()
     except requests.RequestException as e:
-        print(f"API fetch error: {e}")
+        print(f"Error: API fetch error: {e}")
         return None

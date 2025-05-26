@@ -11,7 +11,11 @@
         },
         {
             "name": "Summarizer",
-            "prompt": "Summarize the key points from the information provided.",
+            "prompt": "Summarize the key points from the information provided",
+            "human_prompt": "Retriever Agent response: {{RetrieverAgent_output}}",
+            "human_prompt_state_vars": [
+                "RetrieverAgent_output"
+            ],
             "tools": []
         },
         {

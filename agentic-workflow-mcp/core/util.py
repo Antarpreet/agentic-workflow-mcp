@@ -63,11 +63,11 @@ def load_workflow_config(config_path: str) -> WorkflowConfig:
         with open(config_path, "r") as file:
             workflow_config = json.load(file)
     except FileNotFoundError:
-        raise FileNotFoundError(f"Workflow config file not found at {config_path}.")
+        raise FileNotFoundError(f"Error: Workflow config file not found at {config_path}.")
     except json.JSONDecodeError:
-        raise ValueError(f"Error decoding JSON from the workflow config file at {config_path}.")
+        raise ValueError(f"Error: Decoding JSON from the workflow config file at {config_path}.")
     except Exception as e:
-        raise Exception(f"Unexpected error loading workflow config: {str(e)}")
+        raise Exception(f"Error: Unexpected error loading workflow config: {str(e)}")
 
     return workflow_config
 
@@ -95,7 +95,16 @@ def get_full_schema(workflow_config: WorkflowConfig) -> dict:
         for k, v in user_schema.items():
             if k not in ("properties", "required"):
                 schema[k] = v
-    
+
+    # Dynamically add agent_name_output properties for all agents in the config
+    agents = workflow_config.get("agents", [])
+    for agent in agents:
+        agent_name = agent.get("name")
+        if agent_name:
+            output_key = f"{agent_name}_output"
+            # Only add if not already present
+            if output_key not in schema["properties"]:
+                schema["properties"][output_key] = {"type": "string"}
     return schema
 
 

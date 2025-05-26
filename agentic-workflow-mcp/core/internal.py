@@ -1,5 +1,6 @@
 import os
-from typing import List, Optional, Union
+import time
+from typing import List, Optional
 
 from chromadb import PersistentClient
 from chromadb.config import Settings
@@ -105,7 +106,7 @@ async def display(ctx: AppContext) -> str:
         # Generate the graph from the workflow configuration
         graph = generate_graph_from_workflow(workflow_config, logs, ctx)
     except Exception as e:
-        log_message(logs, f"Error generating graph: {str(e)} {repr(e)}")
+        log_message(logs, f"Error: generating graph: {str(e)} {repr(e)}")
         return
 
     try:
@@ -119,7 +120,7 @@ async def display(ctx: AppContext) -> str:
         log_message(logs, f"Graph image successfully saved to {output_path}")
         
     except Exception as e:
-        log_message(logs, f"Error generating or saving graph image: {str(e)}")
+        log_message(logs, f"Error: generating or saving graph image: {str(e)}")
 
     return output_path
 
@@ -138,17 +139,26 @@ async def process(ctx: AppContext, user_prompt: str) -> dict:
     logs = []
     log_message(logs, f"Starting workflow with user prompt: {user_prompt}")
     workflow_config: WorkflowConfig = ctx.workflow_config
+    recursion_limit = workflow_config.get("recursion_limit", DEFAULT_WORKFLOW_CONFIG["recursion_limit"])
 
+    start_time = time.time()
     try:
         # Generate the graph from the workflow configuration
         graph = generate_graph_from_workflow(workflow_config, logs, ctx)
 
         # Execute the graph with the user prompt
-        response = graph.invoke({"input": user_prompt})
+        response = graph.invoke(input={"input": user_prompt}, config={"recursion_limit": recursion_limit})
     except Exception as e:
-        log_message(logs, f"Error running workflow: {str(e)} {repr(e)}")
+        log_message(logs, f"Error: running workflow: {str(e)} {repr(e)}")
         response = {"logs": logs}
 
+    end_time = time.time()
+    elapsed = end_time - start_time
+    log_message(logs, f"Workflow processing time: {elapsed:.2f} seconds")
+
+    for key, value in response.items():
+        value_str = str(value)
+        log_message(logs, f"State: {key}: {value_str[:100]}...")
     return response
 
 
@@ -168,18 +178,18 @@ async def embed(ctx: AppContext, file_paths: List[str]) -> dict:
     return update_embeddings(file_paths=file_paths, ctx=ctx)
 
 
-async def embed_visualize(ctx: AppContext) -> str:
+async def embed_visualize(ctx: AppContext, collection_name: str = None) -> str:
     """
     Visualizes the embeddings in the ChromaDB collection.
 
     Args:
         ctx (AppContext): The application context containing the embedding model.
+        collection_name (str, optional): The name of the ChromaDB collection to visualize. If not provided, uses the default from workflow config.
 
     Returns:
         str: The path to the visualization image file.
     """
     workflow_config: WorkflowConfig = ctx.workflow_config
-    collection_name = workflow_config.get("collection_name", DEFAULT_WORKFLOW_CONFIG["collection_name"])
-    log_message([], f"Visualizing embeddings from collection: {collection_name}")
+    workflow_collection_name = workflow_config.get("collection_name", DEFAULT_WORKFLOW_CONFIG["collection_name"])
     # Call the visualize_embeddings function to create the visualization
-    return visualize(ctx, collection_name=collection_name)
+    return visualize(ctx, collection_name=(collection_name or workflow_collection_name))

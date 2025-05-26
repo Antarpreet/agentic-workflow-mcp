@@ -1,5 +1,6 @@
 import json
 import os
+import time
 
 from functools import partial
 from langchain.chains.base import Chain
@@ -17,7 +18,9 @@ from langchain.tools import  StructuredTool
 from tools.api_fetch import api_fetch
 from tools.embedding_retriever import retrieve_embeddings, modify_embeddings
 from tools.file_system import list_files, read_file, read_multiple_files, write_file, write_file_lines, append_file, append_file_lines
+from tools.shell_command import run_shell_command
 from tools.web_search import web_search
+from tools.xml import validate_xml
 from core.log import log_message
 from core.model import DefaultWorkflowState, DEFAULT_WORKFLOW_CONFIG, WorkflowConfig, AgentConfig, AppContext
 from core.util import typed_dict_from_json_schema, get_full_schema, ensure_utf8
@@ -90,7 +93,7 @@ def prepare_prompt_and_flags(agent_name: str, prompt_template: str, workflow_con
         prompt_template (str): The prompt template for the agent.
         workflow_config (WorkflowConfig): The workflow configuration dictionary.
         state (dict): The current state of the workflow.
-    
+
     Returns:
         tuple: A tuple containing the updated prompt template, and flags indicating if the node is a parallel or orchestrator worker node.
     """
@@ -118,24 +121,27 @@ def prepare_prompt_and_flags(agent_name: str, prompt_template: str, workflow_con
     return prompt_template, is_parallel_node, is_orchestrator_worker_node
 
 
-def invoke_llm(model: ChatOllama, prompt_template: str, current_input: str, tools: list, output_format: dict, agent_name: str, logs: list) -> str:
+def invoke_llm(state: dict, model: ChatOllama, prompt_template: str, current_input: str, tools: list, output_format: dict, agent_name: str, agent_config: AgentConfig, workflow_config: WorkflowConfig, logs: list) -> str:
     """
     Invokes the LLM with the given prompt template and input, ensuring all inputs are UTF-8 encoded.
 
     Args:
+        state (dict): The current state of the workflow.
         model (ChatOllama): The LLM model to use for invocation.
         prompt_template (str): The prompt template for the agent.
         current_input (str): The current input to the LLM.
         tools (list): List of tools available to the agent.
         output_format (dict): The expected output format for the LLM response.
         agent_name (str): The name of the agent node.
+        agent_config (AgentConfig): The configuration for this agent node.
+        workflow_config (WorkflowConfig): The workflow configuration dictionary.
         logs (list): List to store log messages during invocation.
 
     Returns:
         str: The LLM response.
     """
-
     llm_response = None
+    start_time = time.time()
     try:
         log_message(logs, ensure_utf8(f"Node {agent_name} using tools: {[getattr(t, '__name__', str(t)) for t in tools]}"))
         final_model = model
@@ -146,15 +152,52 @@ def invoke_llm(model: ChatOllama, prompt_template: str, current_input: str, tool
         # Ensure all inputs are utf-8
         safe_prompt = ensure_utf8(prompt_template)
         safe_input = ensure_utf8(current_input)
-        llm_response = final_model.invoke([
-            SystemMessage(content=safe_prompt),
-            HumanMessage(content=safe_input)
-        ])
+        agent_human_prompt = agent_config.get("human_prompt", None)
+        if agent_config.get("human_prompt_file"):
+            workspace_path = os.getenv('WORKSPACE_PATH', '.')
+            # Read the human prompt from a file if specified
+            human_prompt_file_path = agent_config["human_prompt_file"]
+            try:
+                # Prepend workspace_path if not absolute
+                if not os.path.isabs(human_prompt_file_path):
+                    human_prompt_file_path = os.path.join(workspace_path, human_prompt_file_path)
+                with open(human_prompt_file_path, "r") as file:
+                    agent_human_prompt = file.read()
+                log_message(logs, f"Loaded human prompt from file for {agent_name}: {human_prompt_file_path}")
+            except FileNotFoundError:
+                log_message(logs, f"Error: Human prompt file not found for {agent_name}: {human_prompt_file_path}. Using default prompt.")
+            except Exception as e:
+                log_message(logs, f"Error: reading human prompt file for {agent_name}: {e}. Using default prompt.")
+        agent_state_vars = agent_config.get("human_prompt_state_vars", [])
+        # Replace state variables in the human prompt template where they are mentioned in the prompt, if not already present then append them
+        # The format is {{var_name}} in the human prompt template
+        if agent_state_vars:
+            log_message(logs, f"Agent {agent_name} state variables: {agent_state_vars}")
+            for var in agent_state_vars:
+                var_value = state.get(var, "")
+                if var_value:
+                    if f"{{{{{var}}}}}" not in agent_human_prompt:
+                        agent_human_prompt += f"\n{var}: {var_value}"
+                    else:
+                        agent_human_prompt = agent_human_prompt.replace(f"{{{{{var}}}}}", var_value)
+                log_message(logs, f"Agent {agent_name} human prompt template {agent_human_prompt}")
+        safe_human_prompt = ensure_utf8(agent_human_prompt) if agent_human_prompt else None
+        
+        messages = [SystemMessage(content=safe_prompt)]
+        if not safe_human_prompt:
+            messages.append(HumanMessage(content=safe_input))
+        else:
+            messages.append(HumanMessage(content=safe_human_prompt))
+            log_message(logs, ensure_utf8(f"Using agent human prompt: {safe_human_prompt}"))
+        llm_response = final_model.invoke(messages)
         log_message(logs, ensure_utf8(f"Node {agent_name} LLM response (truncated): {llm_response}..."))
     except Exception as e:
-        error_msg = ensure_utf8(f"Error invoking LLM for node {agent_name}: {e}")
+        error_msg = ensure_utf8(f"Error: invoking LLM for node {agent_name}: {e}")
         log_message(logs, error_msg)
         llm_response = ensure_utf8(f"Error in {agent_name}: {e}")
+    end_time = time.time()
+    elapsed = end_time - start_time
+    log_message(logs, f"Node {agent_name} LLM invocation time: {elapsed:.2f} seconds")
     return llm_response
 
 
@@ -204,11 +247,11 @@ def handle_tool_calls(
                         result = tool_func(**arguments)
                     log_message(logs, f"Tool '{tool_name}' invoked successfully with result: {result}")
                 except Exception as tool_exc:
-                    result = f"Tool '{tool_name}' error: {tool_exc}"
-                    log_message(logs, f"Error invoking tool '{tool_name}': {tool_exc}")
+                    result = f"Error: Tool '{tool_name}' error: {tool_exc}"
+                    log_message(logs, f"Error: invoking tool '{tool_name}': {tool_exc}")
             else:
-                result = f"Tool '{tool_name}' not found"
-                log_message(logs, f"Tool '{tool_name}' not found in tools list.")
+                result = f"Error: Tool '{tool_name}' not found"
+                log_message(logs, f"Error: Tool '{tool_name}' not found in tools list.")
             tool_results.append({"tool": tool_name, "result": result})
         return json.dumps({"tool_results": tool_results})
     return None
@@ -311,7 +354,7 @@ def process_llm_response(
             for output_key in output_keys:
                 update_dict[output_key] = result.get(output_key, "")
     except Exception as e:
-        log_message(logs, f"Error processing LLM response for node {agent_name}: {e} {repr(e)}")
+        log_message(logs, f"Error: processing LLM response for node {agent_name}: {e} {repr(e)}")
         return {}
 
     return update_dict
@@ -356,13 +399,26 @@ def agent_node_action(
         return {}
 
     llm_response = invoke_llm(
-        model, prompt_template, current_input, tools, output_format, agent_name, logs
+        state, model, prompt_template, current_input, tools, output_format, agent_name, agent_config, workflow_config, logs
     )
 
     update_dict = process_llm_response(
         llm_response, agent_name, agent_config, output_format, state, workflow_config,
         is_parallel_node, logs, workspace_path, tools, ctx, retrieval_chain, vectorstore
     )
+
+    if not state.get("user_input"):
+        # If user input is not set, set it to the current input
+        update_dict["user_input"] = current_input
+
+    # Log all keys and values of update_dict in new line in log_message. Limit each value to 100 characters
+    for key, value in state.items():
+        value_str = str(value)
+        log_message(logs, f"State: {key}: {value_str[:100]}...")
+
+    for key, value in update_dict.items():
+        value_str = str(value)
+        log_message(logs, f"Update: {key}: {value_str[:100]}...")
 
     return update_dict
 
@@ -418,6 +474,10 @@ def add_tools(agent_config: AgentConfig, agent_name: str, logs: list) -> list:
             agent_tools.append(tool_function if tool_function else retrieve_embeddings)
         elif tool_name == "modify_embeddings":
             agent_tools.append(tool_function if tool_function else modify_embeddings)
+        elif tool_name == "run_shell_command":
+            agent_tools.append(tool_function if tool_function else run_shell_command)
+        elif tool_name == "validate_xml":
+            agent_tools.append(tool_function if tool_function else validate_xml)
         else:
             log_message(logs, f"Warning: Tool '{tool_name}' for agent '{agent_name}' is defined in config but not mapped to a function.")
     log_message(logs, f"Tools configured for {agent_name}: {[getattr(t, '__name__', str(t)) for t in agent_tools]}")
@@ -500,9 +560,9 @@ def add_nodes(graph: StateGraph, agents: list, workflow_config: WorkflowConfig, 
                     prompt_template = file.read()
                 log_message(logs, f"Loaded prompt from file for {agent_name}: {prompt_file_path}")
             except FileNotFoundError:
-                log_message(logs, f"Prompt file not found for {agent_name}: {prompt_file_path}. Using default prompt.")
+                log_message(logs, f"Error: Prompt file not found for {agent_name}: {prompt_file_path}. Using default prompt.")
             except Exception as e:
-                log_message(logs, f"Error reading prompt file for {agent_name}: {e}. Using default prompt.")
+                log_message(logs, f"Error: reading prompt file for {agent_name}: {e}. Using default prompt.")
 
         # Prepare the list of tools for this agent
         agent_tools = add_tools(agent_config, agent_name, logs)

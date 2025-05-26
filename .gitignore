@@ -14,3 +14,4 @@ dist/
 *.sqlite3
 *.db
 chroma_vector_db/
+agentic-workflow-mcp/agentic-workflow-mcp

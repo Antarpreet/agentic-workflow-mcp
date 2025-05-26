@@ -11,16 +11,23 @@ For supported workflow example configurations, see the [Config Examples](config_
 - [Installation](#installation)
 - [Config Settings](#config-settings)
 - [Config Examples](config_examples/Readme.md)
+- [Detailed Config Guides](guides/detailed_config_guides.md)
 - [Environment Variables](#environment-variables)
-- [GitHub Copilot Tools](#github-copilot-tools)
+- [MCP Tools](#mcp-tools)
+- [Using MCP Tools](guides/using_mcp_tools.md)
 - [Custom Embeddings for RAG](#custom-embeddings-for-rag)
 - [Local LLM Tools](#local-llm-tools)
 - [Troubleshooting](#troubleshooting)
+- [Using Workflows without MCP Server](#using-workflows-without-mcp-server)
+
+---
 
 ## Articles
 
 - [🧠 How to Set Up a Local Agentic Workflow with MCP and Ollama (Without Losing Your Mind)](https://medium.com/@antarpreetsingh/how-to-set-up-a-local-agentic-workflow-with-mcp-and-ollama-95864d30f462)
 - [🧠Create Vector Embeddings for Your Local Agentic Workflow Using an MCP Server (The easy way)](https://medium.com/@antarpreetsingh/create-vector-embeddings-for-your-local-agentic-workflow-using-an-mcp-server-0e424e2cc6b7)
+
+---
 
 ## Prerequisites
 
@@ -29,6 +36,8 @@ For supported workflow example configurations, see the [Config Examples](config_
 - pip (for installing Python packages)
 - Ollama CLI (for local LLMs)
 ```
+
+---
 
 ## Installation
 
@@ -48,11 +57,13 @@ For supported workflow example configurations, see the [Config Examples](config_
 
     > If you are using tools in your workflow, please ensure the model you are using supports them: [Models supporting tools](https://ollama.com/search?c=tools)
 
-    If you will be using local vector embeddings in your workflow, you can also start the `nomic-embed-text` model using the following command:
+    If you will be using local vector embeddings in your workflow, you can also pull the `nomic-embed-text` model using the following command:
 
     ```bash
-    ollama run nomic-embed-text
+    ollama pull nomic-embed-text
     ```
+
+    > Other embedding models can be found here: [Embedding Models](https://ollama.com/search?c=embedding).
 
 3. Install the required Python packages:
 
@@ -134,9 +145,12 @@ For supported workflow example configurations, see the [Config Examples](config_
     Use MCP Tools to start a workflow to YOUR_PROMPT_HERE.
     // This will create embeddings for the files passed in the prompt.
     Use MCP tool to embed files #file:Readme.md
-    // This will create a 2D or 3D visualization of the embeddings.
+    // This will create a 2D or 3D visualization of the embeddings
+    // for the default collection from the config unless specified in the prompt.
     Use MCP tool to visualize embeddings.
     ```
+
+---
 
 ## Config Settings
 
@@ -146,6 +160,7 @@ For supported workflow example configurations, see the [Config Examples](config_
 | --- | --- | --- | --- | --- |
 | `default_model` | string | The default model to use for the LLM server. | `true` | `llama3.2:3b` |
 | `default_temperature` | number | The default temperature to use for the LLM server. | `false` | `0.0` |
+| `recursion_limit` | integer | The recursion limit for the LLM server. | `false` | `25` |
 | `embedding_model` | string | The embedding model to use for the LLM server. | `false` | `nomic-embed-text` |
 | `collection_name` | string | The name of the ChromaDB vector database collection to use for the LLM server. | `false` | `langchain_chroma_collection` |
 | `delete_missing_embeddings` | boolean | Whether to delete the embeddings for files that are no longer present in the workspace. | `false` | `true` |
@@ -160,6 +175,8 @@ For supported workflow example configurations, see the [Config Examples](config_
 | `branches` | object[] | The branches in the workflow. | `false` | [Branch](#branch) |
 | `routers` | object[] | The routers in the workflow. | `false` | [Router](#router) |
 
+---
+
 ### Agent
 
 | Key | Type | Description | Required | Example |
@@ -169,11 +186,16 @@ For supported workflow example configurations, see the [Config Examples](config_
 | `temperature` | number | The temperature to use for the agent. If different from the default temperature. | `false` | `0.0` |
 | `prompt` | string | The prompt to use for the agent. This takes precedence over `prompt_file`. | `true` | `You are an agent that orchestrates the workflow.` |
 | `prompt_file` | string | Either the absolute path to the prompt file or path to the prompt file in the format `agentic-workflow-mcp/YOUR_PROMPT_FILE_NAME` if the prompt file is added to the `agentic-workflow-mcp` in this repo. | `false` | `prompt.txt` |
+| `human_prompt` | string | The prompt to use for the human input. If not provided, the default human prompt will be used. | `false` | `Follow the system prompt instructions and provide response` |
+| `human_prompt_file` | string | The prompt file to use for the human input. If not provided, the default human prompt file will be used. | `false` | `human_prompt.txt` |
+| `human_prompt_state_vars` | string[] | The state variables to use in the prompt. These will be replaced with the values from the workflow state. These can be used in the prompt using `{{var_name}}`. | `false` | `["agent_output"]` |
 | `output_decision_keys` | string[] | The keys in the output that will be used in the workflow state. | `false` | `["decision_key"]` |
 | `output_format` | object | The output format for the agent. | `false` | `{"type": "object", "properties": {"response": {"type": "string"}}, "required": ["response"]}` |
 | `tools` | string[] | The tools to use for the agent. | `false` | `["read_file"]` |
 | `tool_functions` | object[] | The functions to use for the tools. | `false` | `{"read_file":` [Tool](#tool)`}` |
 | `embeddings_collection_name` | string | The name of the ChromaDB vector database collection to use for the agent. | `false` | `langchain_chroma_collection` |
+
+---
 
 ### Tool
 
@@ -181,6 +203,8 @@ For supported workflow example configurations, see the [Config Examples](config_
 | --- | --- | --- | --- | --- |
 | `description` | string | The description of the tool. | `true` | `Reads the contents of a file and returns it as a string.` |
 | `function_string` | string | The function string to use for the tool. | `true` | `lambda filename, workspace_path=None: open(filename if workspace_path is None else f'{workspace_path}/{filename}', 'r', encoding='utf-8').read()` |
+
+---
 
 ### Orchestrator
 
@@ -201,6 +225,8 @@ For supported workflow example configurations, see the [Config Examples](config_
 | `can_end_workflow` | boolean | Whether the orchestrator can end the workflow. | `false` | `false` |
 | `completion_condition` | string | The completion condition for the orchestrator agent. | `true` | `lambda state: state.get('final_output') is not None` |
 
+---
+
 ### Evaluator
 
 | Key | Type | Description | Required | Example |
@@ -211,12 +237,16 @@ For supported workflow example configurations, see the [Config Examples](config_
 | `quality_condition` | string | The quality condition for the evaluator agent. | `true` | `lambda state: state.get('quality_score', 0) >= state.get('quality_threshold', 0.8)` |
 | `max_iterations` | integer | The maximum number of iterations for the evaluator agent. | `false` | `5` |
 
+---
+
 ### Edge
 
 | Key | Type | Description | Required | Example |
 | --- | --- | --- | --- | --- |
 | `source` | string | The source agent. The value can also be `__start__` representing start of the workflow. | `true` | `OrchestratorAgent` |
 | `target` | string | The target agent. The value can also be `__end__` representing end of the workflow. | `true` | `AggregatorAgent` |
+
+---
 
 ### Parallel
 
@@ -226,6 +256,8 @@ For supported workflow example configurations, see the [Config Examples](config_
 | `nodes` | string[] | The parallel agents. | `true` | `["Agent1", "Agent2"]` |
 | `join` | string | The agent that will join the responses from parallel agents. | `true` | `JoinAgent` |
 
+---
+
 ### Branch
 
 | Key | Type | Description | Required | Example |
@@ -234,12 +266,16 @@ For supported workflow example configurations, see the [Config Examples](config_
 | `condition` | string | The condition for the branch. | `true` | `lambda state: state.get('class')'` |
 | `targets` | object | The target agents for the branch. | `true` | `{"class1": "Agent1", "class2": "Agent2"}` |
 
+---
+
 ### Router
 
 | Key | Type | Description | Required | Example |
 | --- | --- | --- | --- | --- |
 | `source` | string | The source agent that will call the router agents. | `true` | `RouterAgent` |
 | `router_function` | string | The function to use for the router. | `true` | `lambda state: state.get('next_step')` |
+
+---
 
 ## Environment Variables
 
@@ -250,7 +286,9 @@ These are the environment variables that are used in the MCP server. You can set
 | `WORKSPACE_PATH` | string | The workspace path to the files to read. | `true` | `${workspaceFolder}` |
 | `WORKFLOW_CONFIG_PATH` | string | The path to the config file. | `true` | `${workspaceFolder}/PATH_TO_YOUR_CONFIG/config.json` |
 
-## GitHub Copilot Tools
+---
+
+## MCP Tools
 
 ### `display_graph`
 
@@ -268,6 +306,8 @@ This tool creates embeddings for one or more files and stores them in the local 
 
 Generates a 2D or 3D visualization of the embeddings in the local ChromaDB vector database. This is useful for understanding the distribution of the embeddings and identifying clusters or patterns in the data.
 
+---
+
 ## Custom Embeddings for RAG
 
 Custom Embeddings for your local files can be created using the `embed_files` tool.
@@ -283,6 +323,8 @@ The embeddings are automatically created, updated and deleted when invoking the 
 The local embeddings can be made available to any agent in the chain by using the `retrieve_embeddings` tool in the agent configuration. This tool will retrieve the embeddings from the local vector database and use them to answer questions.
 
 You can visualize the embeddings using the `visualize_embeddings` tool. This will create a 2D or 3D visualization of the embeddings in the local ChromaDB vector database. This is useful for understanding the distribution of the embeddings and identifying clusters or patterns in the data.
+
+---
 
 ## Local LLM Tools
 
@@ -380,6 +422,26 @@ Fetch data from an API endpoint.
 | `json` | object | The JSON data to include in the request body. | `false` | `{}` |
 | `timeout` | integer | The timeout for the request in seconds. | `false` | `10` |
 
+### `run_shell_command`
+
+Runs a shell command and returns the output.
+
+| Item | Type | Description | Required | Defaults |
+| --- | --- | --- | --- | --- |
+| `command` | string | The shell command to run. | `true` | `""` |
+
+### `validate_xml`
+
+Validates an XML file against a given XSD schema.
+
+> This uses `xmllint` cli command to validate the XML file. Make sure to install the command for your operating system.
+
+| Item | Type | Description | Required | Defaults |
+| --- | --- | --- | --- | --- |
+| `xml_file_path` | string | The path to the XML file to validate. | `true` | `""` |
+| `xsd_file_path` | string | The path to the XSD schema file. | `true` | `""` |
+| `workspace_path` | string | The workspace path to the files to validate. | `false` | `${workspaceFolder}` |
+
 ### `retrieve_embeddings`
 
 Fetches the embeddings from the local vector database and uses them to answer questions.
@@ -395,6 +457,8 @@ Updates the embeddings for the specified files.
 | Item | Type | Description | Required | Defaults |
 | --- | --- | --- | --- | --- |
 | `file_paths` | string[] | The paths to the files to update. | `true` | `[]` |
+
+---
 
 ## Troubleshooting
 
@@ -419,3 +483,9 @@ Updates the embeddings for the specified files.
     ```bash
     tail -f ~/agentic-workflow-mcp/logs.txt
      ```
+
+- If you want to clean the local chroma db, you can do by deleting the `chroma_vector_db` folder in your workspace folder. This will delete all the embeddings and you can start fresh. Make sure to restart the MCP server after deleting the folder in order to initialize the empty database.
+
+## Using Workflows without MCP Server
+
+If you want to use the workflows without the MCP server, you can do so by directly importing the python classes as used in the [`Test All Configs`](agentic-workflow-mcp/test_all_configs.py) file. This way the workflows can be deployed as a web service to a cloud provider using the same configuration files.

@@ -24,4 +24,4 @@ def web_search(query: str, max_results: int = 5) -> str:
                 output.append(f"{i+1}. {title}\n{body}\n{href}\n")
             return "\n".join(output) if output else "No results found."
     except Exception as e:
-        return f"Error during web search: {e}"
+        return f"Error: during web search: {e}"

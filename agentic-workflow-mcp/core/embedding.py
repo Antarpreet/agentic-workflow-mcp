@@ -1,11 +1,14 @@
 import hashlib
 import os
+import re
 from datetime import datetime
 from typing import List
 
 from chromadb import ClientAPI
 from langchain.schema.vectorstore import VectorStore
 import numpy as np
+from sklearn.decomposition import PCA
+import plotly.express as px
 
 from core.model import AppContext, WorkflowConfig, DEFAULT_WORKFLOW_CONFIG
 from tools.file_system import read_file
@@ -42,6 +45,18 @@ def update_embeddings(
         else:
             file_paths = [file_paths]
 
+    # Remove '/path/to/' from the file_path if present
+    cleaned_file_paths = []
+    for file_path in file_paths:
+        if isinstance(file_path, str) and file_path.startswith("/path/to/"):
+            file_path = file_path[len("/path/to/"):]
+        # Remove trailing '*' if file_path is a folder pattern like "lib/*"
+        if isinstance(file_path, str) and file_path.endswith("/*"):
+            cleaned_file_paths.append(file_path[:-2])
+        else:
+            cleaned_file_paths.append(file_path)
+    file_paths = cleaned_file_paths
+
     # Prepend workspace_path to any relative file paths
     if workspace_path:
         file_paths = [
@@ -57,7 +72,16 @@ def update_embeddings(
                 for fname in files:
                     expanded_file_paths.append(os.path.join(root, fname))
         else:
-            expanded_file_paths.append(file_path)
+            # If not a folder, walk the workspace path to find the file
+            found = False
+            if workspace_path and not os.path.isabs(file_path):
+                for root, _, files in os.walk(workspace_path):
+                    if os.path.basename(file_path) in files:
+                        expanded_file_paths.append(os.path.join(root, os.path.basename(file_path)))
+                        found = True
+                        break
+            if not found:
+                expanded_file_paths.append(file_path)
     file_paths = expanded_file_paths
     # Get resources from context
     chroma_client: ClientAPI = ctx.chroma_client
@@ -81,9 +105,12 @@ def update_embeddings(
                 log_message(logs, f"File not found: {file_path}")
                 continue
             
-            # Read file content using the LangChain BaseTool's invoke method
-            content = read_file.invoke({"file_path": file_path, "workspace_path": workspace_path})
+            # Read file content using the LangChain BaseTool's invoke method, ensuring UTF-8 encoding
+            content = read_file.invoke({"file_path": file_path, "workspace_path": workspace_path, "encoding": "utf-8"})
             
+            # Remove any emojis from the content
+            content = re.sub(r'[^\x00-\x7F]+', '', content)  # Remove non-ASCII characters
+
             # Generate a unique ID for the document based on content and path
             doc_id = hashlib.md5((file_path + content).encode()).hexdigest()
             
@@ -123,7 +150,7 @@ def update_embeddings(
                 log_message(logs, f"File {file_path} already has up-to-date embedding, skipping")
             
         except Exception as e:
-            log_message(logs, f"Error processing file {file_path}: {str(e)}")
+            log_message(logs, f"Error: processing file {file_path}: {str(e)}")
     
     # Create new embeddings if needed
     created_count = 0
@@ -150,7 +177,7 @@ def update_embeddings(
                         deleted_count += 1
                         log_message(logs, f"Deleted embedding for missing file: {file_path}")
         except Exception as e:
-            log_message(logs, f"Error while cleaning up deleted files: {str(e)}")
+            log_message(logs, f"Error: while cleaning up deleted files: {str(e)}")
     
     return {
         "status": "success",
@@ -173,82 +200,86 @@ def visualize(ctx: AppContext, collection_name: str = None) -> str:
     retrieves embeddings, reduces their dimensionality using PCA, and displays
     an interactive 2D or 3D plot using Plotly.
     """
-    # Connect to the ChromaDB database and load the collection
-    chroma = ctx.chroma_client
-    collection = chroma.get_collection(collection_name)
+    logs = []
+    try:
+        log_message(logs, f"Visualizing embeddings from collection: {collection_name}")
 
-    print("Collection name:", collection.name)
-    print("Number of embeddings:", collection.count())
+        chroma = ctx.chroma_client
+        collection = chroma.get_collection(collection_name)
 
-    # Retrieve the embeddings, document IDs, and metadatas from the collection
-    result = collection.get(include=['embeddings', 'metadatas'])
-    embeddings = result['embeddings']
-    docs = collection.get(include=['documents'])['ids']
-    metadatas = result['metadatas']
+        log_message(logs, f"Collection name: {collection_name}")
+        log_message(logs, f"Number of embeddings: {collection.count()}")
 
-    # Use only the filename for the label, fallback to id if not available
-    point_labels = []
-    for i, metadata in enumerate(metadatas):
-        if isinstance(metadata, dict) and "filename" in metadata:
-            point_labels.append(metadata["filename"])
-        else:
-            point_labels.append(docs[i])
+        # Retrieve the embeddings, document IDs, and metadatas from the collection
+        result = collection.get(include=['embeddings', 'metadatas'])
+        embeddings = result['embeddings']
+        docs = collection.get(include=['documents'])['ids']
+        metadatas = result['metadatas']
 
-    embeddings = np.array(embeddings)
+        # Use only the filename for the label, fallback to id if not available
+        point_labels = []
+        for i, metadata in enumerate(metadatas):
+            if isinstance(metadata, dict) and "filename" in metadata:
+                point_labels.append(metadata["filename"])
+            else:
+                point_labels.append(docs[i])
 
-    print("Embeddings shape:", embeddings.shape)
-    print("Collection columns:", result.keys())
-    print("Document label example:", point_labels[0])
+        embeddings = np.array(embeddings)
 
-    n_samples, n_features = embeddings.shape
+        log_message(logs, f"Embeddings shape: {embeddings.shape}")
+        log_message(logs, f"Collection columns: {result.keys()}")
+        log_message(logs, f"Document label example: {point_labels[0]}")
 
-    print("Number of samples:", n_samples)
-    print("Number of features:", n_features)
+        n_samples, n_features = embeddings.shape
 
-    if n_samples == 0 or n_features == 0:
-        raise ValueError("No embeddings found in the collection.")
+        log_message(logs, f"Number of samples: {n_samples}")
+        log_message(logs, f"Number of features: {n_features}")
 
-    if n_samples < 2:
-        raise ValueError("At least 2 samples are required for PCA visualization.")
+        if n_samples == 0 or n_features == 0:
+            raise ValueError("No embeddings found in the collection.")
 
-    n_components = min(3, n_samples, n_features)
+        if n_samples < 2:
+            raise ValueError("At least 2 samples are required for PCA visualization.")
 
-    from sklearn.decomposition import PCA
-    pca = PCA(n_components=n_components)
-    vis_dims = pca.fit_transform(embeddings)
+        n_components = min(3, n_samples, n_features)
 
-    print("PCA components shape:", vis_dims.shape)
+        pca = PCA(n_components=n_components)
+        vis_dims = pca.fit_transform(embeddings)
 
-    if (vis_dims == 0).all():
-        raise ValueError("PCA resulted in all-zero components. Not enough variance in the data to visualize.")
+        log_message(logs, f"PCA components shape: {vis_dims.shape}")
 
-    explained_var = pca.explained_variance_ratio_ * 100  # as percentage
+        if (vis_dims == 0).all():
+            raise ValueError("PCA resulted in all-zero components. Not enough variance in the data to visualize.")
 
-    labels = {}
-    for i in range(n_components):
-        labels[f"{'xyz'[i]}"] = f"PCA Component {i+1} ({explained_var[i]:.1f}% var)"
+        explained_var = pca.explained_variance_ratio_ * 100  # as percentage
 
-    import plotly.express as px
-    if n_components == 3:
-        fig = px.scatter_3d(
+        labels = {}
+        for i in range(n_components):
+            labels[f"{'xyz'[i]}"] = f"{'XYZ'[i]} ({explained_var[i]:.1f}% var)"
+
+        if n_components == 3:
+            fig = px.scatter_3d(
             x=vis_dims[:, 0],
             y=vis_dims[:, 1],
             z=vis_dims[:, 2],
             text=point_labels,
             labels=labels,
             title='3D PCA of Embeddings'
-        )
-    elif n_components == 2:
-        fig = px.scatter(
+            )
+        elif n_components == 2:
+            fig = px.scatter(
             x=vis_dims[:, 0],
             y=vis_dims[:, 1],
             text=point_labels,
             labels=labels,
             title='2D PCA of Embeddings'
-        )
-    else:
-        raise ValueError("Not enough samples or features for 2D or 3D visualization.")
+            )
+        else:
+            raise ValueError("Not enough samples or features for 2D or 3D visualization.")
 
-    fig.show()
+        fig.show()
 
-    return "Visualization complete. Check your browser for the interactive plot."
+        return "Visualization complete. Check your browser for the interactive plot."
+    except Exception as e:
+        log_message(logs, f"Error during visualization: {str(e)}")
+        return f"Visualization failed: {str(e)}"

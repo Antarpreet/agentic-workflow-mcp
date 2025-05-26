@@ -14,6 +14,7 @@ DEFAULT_WORKFLOW_CONFIG = {
     "embedding_model": "nomic-embed-text",
     "default_model": "llama3.2:3b",
     "default_temperature": 0.0,
+    "recursion_limit": 25,
     "collection_name": "langchain_chroma_collection",
     "default_orchestrator_completion_condition": "lambda state: state.get('final_output') is not None",
     "delete_missing_embeddings": True,
@@ -21,6 +22,9 @@ DEFAULT_WORKFLOW_CONFIG = {
     "state_schema": {
         "type": "object",
         "properties": {
+            "user_input": {
+                "type": "string"
+            },
             "input": {
                 "type": "string"
             },

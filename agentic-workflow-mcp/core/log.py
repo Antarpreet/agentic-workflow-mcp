@@ -18,6 +18,9 @@ def log_message(logs, message):
     logs.append(timestamped_message)
     # Get the log file path from the workflow configuration
     log_file = DEFAULT_WORKFLOW_CONFIG["log_file_path"]
+    log_dir = os.path.dirname(log_file)
+    if log_dir and not os.path.exists(log_dir):
+        os.makedirs(log_dir, exist_ok=True)
     # Write the message to the log file
     with open(log_file, "a") as file:
         file.write(timestamped_message + "\n")
