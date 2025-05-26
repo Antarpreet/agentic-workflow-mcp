@@ -165,8 +165,8 @@ For supported workflow example configurations, see the [Config Examples](config_
 | `collection_name` | string | The name of the ChromaDB vector database collection to use for the LLM server. | `false` | `langchain_chroma_collection` |
 | `delete_missing_embeddings` | boolean | Whether to delete the embeddings for files that are no longer present in the workspace. | `false` | `true` |
 | `vector_directory` | string | The directory to store the vector database. | `false` | `chroma_vector_db` |
-| `rag_prompt_template` | string | The prompt template for the RAG agent. | `false` | `Answer the following question based only on the provided context: <context> {context} </context> Question: {input}` |
-| `state_schema` | object | The schema for the workflow state. | `false` | `{"type": "object", "properties": {"input": {"type": "string"},"final_output": {"type": "string"}}, "required": ["input","final_output"]}` |
+| `rag_prompt_template` | string | The prompt template for the RAG agent. Use single curly-braces for `{context}` and `{input}` injection. | `false` | `Answer the following question based only on the provided context: <context> {context} </context> Question: {input}` |
+| `state_schema` | object | The schema for the workflow state. The default properties are always available, you can add your custom properties in the config file. The `input` property changes from agent to agent, allowing the output of one agent to be used as the input for another agent. The `user_input` is the initial user prompt. All the agents' output is also added to the state automatically to be accessed anywhere in the workflow in the format `"YOUR_AGENT_NAME"_output`, for e.g, `RetrieverAgent_output` where agent name is `RetrieverAgent`. | `false` | `{"type": "object", "properties": {"user_input": {"type": "string"},"input": {"type": "string"},"final_output": {"type": "string"}}, "required": ["input","final_output"]}` |
 | `agents` | object[] | The agents used in the workflow. | `true` | [Agent](#agent) |
 | `orchestrator` | object | The orchestrator agent configuration. | `false` | [Orchestrator](#orchestrator) |
 | `evaluator_optimizer` | object | The evaluator configuration. | `false` | [Evaluator](#evaluator) |
@@ -184,7 +184,7 @@ For supported workflow example configurations, see the [Config Examples](config_
 | `name` | string | The name of the agent. | `true` | `Orchestrator Agent` |
 | `model_name` | string | The model to use for the agent. If different from the default model. | `false` | `llama3.2:3b` |
 | `temperature` | number | The temperature to use for the agent. If different from the default temperature. | `false` | `0.0` |
-| `prompt` | string | The prompt to use for the agent. This takes precedence over `prompt_file`. | `true` | `You are an agent that orchestrates the workflow.` |
+| `prompt` | string | The prompt to use for the agent. This takes precedence over `prompt_file`. The state properties can be dynamically injected using double curly-braces `{{AgentName_output}}`. | `true` | `You are an agent that orchestrates the workflow.` |
 | `prompt_file` | string | Either the absolute path to the prompt file or path to the prompt file in the format `agentic-workflow-mcp/YOUR_PROMPT_FILE_NAME` if the prompt file is added to the `agentic-workflow-mcp` in this repo. | `false` | `prompt.txt` |
 | `human_prompt` | string | The prompt to use for the human input. If not provided, the default human prompt will be used. | `false` | `Follow the system prompt instructions and provide response` |
 | `human_prompt_file` | string | The prompt file to use for the human input. If not provided, the default human prompt file will be used. | `false` | `human_prompt.txt` |

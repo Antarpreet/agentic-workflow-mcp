@@ -33,6 +33,7 @@ DEFAULT_WORKFLOW_CONFIG = {
             }
         },
         "required": [
+            "user_input",
             "input",
             "final_output"
         ]
