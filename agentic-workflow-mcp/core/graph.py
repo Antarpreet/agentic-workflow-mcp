@@ -245,7 +245,7 @@ def handle_tool_calls(
                         result = tool_func.invoke(arguments)
                     else:
                         result = tool_func(**arguments)
-                    log_message(logs, f"Tool '{tool_name}' invoked successfully with result: {result}")
+                    log_message(logs, f"Tool '{tool_name}' invoked successfully with result: {str(result)[:100]}...")
                 except Exception as tool_exc:
                     result = f"Error: Tool '{tool_name}' error: {tool_exc}"
                     log_message(logs, f"Error: invoking tool '{tool_name}': {tool_exc}")
