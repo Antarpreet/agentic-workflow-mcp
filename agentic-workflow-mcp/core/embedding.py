@@ -15,7 +15,7 @@ from tools.file_system import read_file
 from core.log import log_message
 
 def update_embeddings(
-        file_paths: List[str], ctx: AppContext, vectorstore: VectorStore = None, collection_name: str = None
+        file_paths: List[str], ctx: AppContext, vectorstore: VectorStore = None, collection_name: str = None, skip_git_ignore: bool = False, exclude_file_paths: List[str] = None
     ) -> dict:
     """
     Update embeddings for files by creating new ones and deleting outdated ones.
@@ -25,6 +25,8 @@ def update_embeddings(
         ctx: The MCP context containing application resources
         vectorstore: The vector store to use. If not provided, it will be retrieved from the context.
         collection_name: Name of the ChromaDB collection to use. If not provided, it will be retrieved from the context.
+        skip_git_ignore: If True, skips files that are ignored by .gitignore.
+        exclude_file_paths: A list of file paths to exclude from the update.
     
     Returns:
         dict: Information about the update operation, including created and deleted embeddings
@@ -83,6 +85,45 @@ def update_embeddings(
             if not found:
                 expanded_file_paths.append(file_path)
     file_paths = expanded_file_paths
+
+    # Exclude file paths that are in any .gitignore file in the workspace if skip_git_ignore is True
+    if skip_git_ignore and workspace_path:
+        gitignore_files = []
+        for root, _, files in os.walk(workspace_path):
+            if '.gitignore' in files:
+                gitignore_files.append(os.path.join(root, '.gitignore'))
+
+        gitignore_patterns = []
+        for gitignore_path in gitignore_files:
+            with open(gitignore_path, 'r') as f:
+                lines = [line.strip() for line in f if line.strip() and not line.strip().startswith('#')]
+                gitignore_patterns.extend(lines)
+
+        # Convert gitignore patterns to regex
+        def pattern_to_regex(pattern):
+            # Basic glob to regex conversion for common patterns
+            pattern = pattern.replace('.', r'\.').replace('*', '.*').replace('?', '.')
+            if pattern.endswith('/'):
+                pattern = pattern + '.*'
+            return '^' + pattern + '$'
+
+        regex_patterns = [re.compile(pattern_to_regex(p)) for p in gitignore_patterns]
+
+        def is_ignored(file_path):
+            rel_path = os.path.relpath(file_path, workspace_path)
+            return any(r.match(rel_path) for r in regex_patterns)
+
+        file_paths = [fp for fp in file_paths if not is_ignored(fp)]
+        log_message(logs, f"Filtered out files based on all .gitignore files: {file_paths}")
+
+    if exclude_file_paths:
+        # Remove any file paths that are in the exclude_file_paths list
+        file_paths = [
+            file_path for file_path in file_paths
+            if not any(exclude_path in file_path for exclude_path in exclude_file_paths)
+        ]
+        log_message(logs, f"Filtered out files based on exclude_file_paths: {file_paths}")
+
     # Get resources from context
     chroma_client: ClientAPI = ctx.chroma_client
     local_vectorstore: VectorStore = ctx.vectorstore
