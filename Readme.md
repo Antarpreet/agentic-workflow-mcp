@@ -457,6 +457,8 @@ Updates the embeddings for the specified files.
 | Item | Type | Description | Required | Defaults |
 | --- | --- | --- | --- | --- |
 | `file_paths` | string[] | The paths to the files to update. | `true` | `[]` |
+| `use_git_ignore` | boolean | Whether to use all of the `.gitignore` files in the workspace to determine which files to update. | `false` | `true` |
+| `exclude_file_paths` | string[] | The paths to the files to exclude from the update. | `false` | `[]` |
 
 ---
 

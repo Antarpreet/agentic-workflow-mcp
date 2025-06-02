@@ -15,7 +15,7 @@ from tools.file_system import read_file
 from core.log import log_message
 
 def update_embeddings(
-        file_paths: List[str], ctx: AppContext, vectorstore: VectorStore = None, collection_name: str = None, skip_git_ignore: bool = False, exclude_file_paths: List[str] = None
+        file_paths: List[str], ctx: AppContext, vectorstore: VectorStore = None, collection_name: str = None, use_git_ignore: bool = False, exclude_file_paths: List[str] = None
     ) -> dict:
     """
     Update embeddings for files by creating new ones and deleting outdated ones.
@@ -25,7 +25,7 @@ def update_embeddings(
         ctx: The MCP context containing application resources
         vectorstore: The vector store to use. If not provided, it will be retrieved from the context.
         collection_name: Name of the ChromaDB collection to use. If not provided, it will be retrieved from the context.
-        skip_git_ignore: If True, skips files that are ignored by .gitignore.
+        use_git_ignore: If True, skips files that are ignored by .gitignore.
         exclude_file_paths: A list of file paths to exclude from the update.
     
     Returns:
@@ -86,8 +86,8 @@ def update_embeddings(
                 expanded_file_paths.append(file_path)
     file_paths = expanded_file_paths
 
-    # Exclude file paths that are in any .gitignore file in the workspace if skip_git_ignore is True
-    if skip_git_ignore and workspace_path:
+    # Exclude file paths that are in any .gitignore file in the workspace if use_git_ignore is True
+    if use_git_ignore and workspace_path:
         gitignore_files = []
         for root, _, files in os.walk(workspace_path):
             if '.gitignore' in files:
