@@ -12,6 +12,7 @@
 - [Orchestrator-Worker](#orchestrator-worker)
 - [Complex Combined Config](#complex-combined-config)
 - [Local Embedding Retriever](#local-embedding-retriever)
+- [Complex Evaluator-Optimizer](#complex-evaluator-optimizer)
 
 ---
 
