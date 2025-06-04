@@ -29,7 +29,8 @@ test_prompts = {
         "1. to embed files #file:Readme.md\n\n"
         "2. to create an email about Agentic Workflow Server if it has custom embedding support"
     ),
-    "embedding_updater_config": "for folder `config_examples`"
+    "embedding_updater_config": "for folder `config_examples`",
+    "complex_evaluator_optimizer_config": "Process the workflow"
 }
 
 os.environ["WORKSPACE_PATH"] = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))

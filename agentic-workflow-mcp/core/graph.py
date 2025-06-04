@@ -411,6 +411,14 @@ def agent_node_action(
         # If user input is not set, set it to the current input
         update_dict["user_input"] = current_input
 
+    # Increment iteration_count if this is the optimizer in evaluator-optimizer pattern
+    if (
+        "evaluator_optimizer" in workflow_config
+        and agent_name == workflow_config["evaluator_optimizer"].get("optimizer")
+    ):
+        prev_count = state.get("iteration_count", 0)
+        update_dict["iteration_count"] = prev_count + 1
+
     # Log all keys and values of update_dict in new line in log_message. Limit each value to 100 characters
     for key, value in state.items():
         value_str = str(value)
@@ -601,6 +609,7 @@ def handle_orchestrator_flow(workflow_config: WorkflowConfig, graph: StateGraph,
     """
     orchestrator_config = workflow_config["orchestrator"]
     orchestrator_name = orchestrator_config["name"]
+    next_agent_name = orchestrator_config.get("next_agent", END)
     # Get agent config for all worker names from workers
     worker_names = orchestrator_config.get("workers", [])
     workers = [agent for agent in workflow_config.get("agents", []) if agent["name"] in worker_names]
@@ -622,18 +631,18 @@ def handle_orchestrator_flow(workflow_config: WorkflowConfig, graph: StateGraph,
             graph.add_conditional_edges(
                 worker_name,
                 eval(completion_condition),
-                {True: END, False: orchestrator_name}
+                {True: next_agent_name, False: orchestrator_name}
             )
 
     # Connect START to orchestrator
     graph.add_edge(START, orchestrator_name)
 
-    # Connect orchestrator to END if specified
+    # Connect orchestrator to next agent if specified
     if orchestrator_config.get("can_end_workflow", True):
         graph.add_conditional_edges(
             orchestrator_name,
             eval(completion_condition),
-            {True: END, False: orchestrator_name}
+            {True: next_agent_name, False: orchestrator_name}
         )
 
 
@@ -653,47 +662,74 @@ def handle_evaluator_optimizer_flow(workflow_config: WorkflowConfig, graph: Stat
     executor_name = eo_config.get("executor")
     evaluator_name = eo_config.get("evaluator")
     optimizer_name = eo_config.get("optimizer")
-    
+    next_agent_name = eo_config.get("next_agent", END)
+
     # Verify that all required nodes exist
     if not all([executor_name, evaluator_name, optimizer_name]):
         log_message(logs, "Error: Evaluator-optimizer flow requires executor, evaluator, and optimizer nodes.")
-    
+        return
+
+    # Find the chain of agents between executor and evaluator if edges are defined
+    agent_chain = []
+    if "edges" in workflow_config:
+        # Build a mapping from source to target for quick traversal
+        edge_map = {}
+        for edge in workflow_config["edges"]:
+            source = edge["source"]
+            target = edge["target"]
+            edge_map[source] = target
+        # Traverse from executor to evaluator
+        current = executor_name
+        visited = set()
+        while current and current not in visited:
+            agent_chain.append(current)
+            visited.add(current)
+            if current == evaluator_name:
+                break
+            current = edge_map.get(current)
+        # If evaluator not found, fallback to direct connection
+        if evaluator_name not in agent_chain:
+            agent_chain = [executor_name, evaluator_name]
+    else:
+        agent_chain = [executor_name, evaluator_name]
+
+    # Connect START to the first agent in the chain if not already handled
     if not "edges" in workflow_config:
-        # Connect START to executor
         graph.add_edge(START, executor_name)
-    
-    # Connect executor to evaluator
-    graph.add_edge(executor_name, evaluator_name)
-    
+
+    # Add edges for the chain between executor and evaluator
+    for i in range(len(agent_chain) - 1):
+        graph.add_edge(agent_chain[i], agent_chain[i + 1])
+
     # Add conditional branching from evaluator based on quality threshold
     quality_condition = eval(eo_config.get("quality_condition", 
                                             "lambda state: state.get('quality_score', 0) >= state.get('quality_threshold', 0.7)"))
-    
+
     graph.add_conditional_edges(
         evaluator_name,
         quality_condition,
         {
-            True: END,  # If quality is good enough, end the workflow
+            True: next_agent_name,  # If quality is good enough, go to next agent
             False: optimizer_name  # Otherwise, send to optimizer for improvement
         }
     )
-    
-    # Connect optimizer back to executor for another attempt
-    graph.add_edge(optimizer_name, executor_name)
-    
+
     # Add iteration limit check if specified
     if "max_iterations" in eo_config:
-        iteration_condition = eval(f"lambda state: state.get('iteration_count', 0) < {eo_config['max_iterations']}")
-        
-        # Apply iteration condition to optimizer output
+        iteration_condition = eval(f"lambda state: int(state.get('iteration_count', 1)) < int({eo_config['max_iterations']})")
+
+        # Only add conditional edge from optimizer based on iteration count
         graph.add_conditional_edges(
             optimizer_name,
             iteration_condition,
             {
                 True: executor_name,  # Continue to executor if under max iterations
-                False: END  # End if max iterations reached
+                False: next_agent_name  # End if max iterations reached
             }
         )
+    else:
+        # If no max_iterations, always go back to executor
+        graph.add_edge(optimizer_name, executor_name)
 
 
 def handle_non_orchestrator_edges(workflow_config: WorkflowConfig, graph: StateGraph) -> None:
@@ -707,11 +743,27 @@ def handle_non_orchestrator_edges(workflow_config: WorkflowConfig, graph: StateG
     Returns:
         None
     """
+    evaluator_next_agent = None
+    evaluator_agent = None
+    optimizer_agent = None
+    if "evaluator_optimizer" in workflow_config:
+        evaluator_next_agent = workflow_config["evaluator_optimizer"].get("next_agent", None)
+        evaluator_agent = workflow_config["evaluator_optimizer"].get("evaluator", None)
+        optimizer_agent = workflow_config["evaluator_optimizer"].get("optimizer", None)
+
     # Use explicitly defined edges
     for edge in workflow_config["edges"]:
         source = edge["source"]
         target = edge["target"]
-        
+
+        # Skip adding the edge if evaluator_optimizer contains next_agent and the target is the next_agent
+        if evaluator_next_agent and (target == evaluator_next_agent or target == evaluator_agent or target == optimizer_agent):
+            continue
+
+        # Check if the connection already exists in the graph
+        if hasattr(graph, "edges") and (source, target) in getattr(graph, "edges", set()):
+            continue
+
         # Handle conditional routing if specified
         if "condition" in edge:
             condition_func = eval(edge["condition"])  # This requires careful validation

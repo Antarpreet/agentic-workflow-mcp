@@ -208,3 +208,20 @@ Use MCP tool to start workflow for folder `./config_examples`
 - Visualize your workflow using the `display_graph` tool for clarity.
 
 For more details, see the main [`Readme.md`](../Readme.md).
+
+## Complex Evaluator-Optimizer
+
+![Complex-Evaluator-Optimizer](./images/complex_evaluator_optimizer_config.png)
+
+- Adds evaluation and optimization steps to the workflow along with defined edges for a more complex example.
+
+**How it works:**
+
+- Use the `evaluator_optimizer` section to define evaluator, optimizer, and quality conditions.
+- Define edges explicitly to control the flow between agents.
+
+**Use case:**
+
+- Quality control, iterative improvement, multiple executions before evaluation.
+
+Test prompt: `Use MCP tool to start workflow to process the workflow`

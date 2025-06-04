@@ -166,7 +166,7 @@ For supported workflow example configurations, see the [Config Examples](config_
 | `delete_missing_embeddings` | boolean | Whether to delete the embeddings for files that are no longer present in the workspace. | `false` | `true` |
 | `vector_directory` | string | The directory to store the vector database. | `false` | `chroma_vector_db` |
 | `rag_prompt_template` | string | The prompt template for the RAG agent. Use single curly-braces for `{context}` and `{input}` injection. | `false` | `Answer the following question based only on the provided context: <context> {context} </context> Question: {input}` |
-| `state_schema` | object | The schema for the workflow state. The default properties are always available, you can add your custom properties in the config file. The `input` property changes from agent to agent, allowing the output of one agent to be used as the input for another agent. The `user_input` is the initial user prompt. All the agents' output is also added to the state automatically to be accessed anywhere in the workflow in the format `"YOUR_AGENT_NAME"_output`, for e.g, `RetrieverAgent_output` where agent name is `RetrieverAgent`. | `false` | `{"type": "object", "properties": {"user_input": {"type": "string"},"input": {"type": "string"},"final_output": {"type": "string"}}, "required": ["input","final_output"]}` |
+| `state_schema` | object | The schema for the workflow state. The default properties are always available, you can add your custom properties in the config file. If the custom properties are not defined in the schema, the workflow might not function as intended. The `input` property changes from agent to agent, allowing the output of one agent to be used as the input for another agent. The `user_input` is the initial user prompt. All the agents' output is also added to the state automatically to be accessed anywhere in the workflow in the format `"YOUR_AGENT_NAME"_output`, for e.g, `RetrieverAgent_output` where agent name is `RetrieverAgent`. | `false` | `{"type": "object", "properties": {"user_input": {"type": "string"},"input": {"type": "string"},"final_output": {"type": "string"}}, "required": ["input","final_output"]}` |
 | `agents` | object[] | The agents used in the workflow. | `true` | [Agent](#agent) |
 | `orchestrator` | object | The orchestrator agent configuration. | `false` | [Orchestrator](#orchestrator) |
 | `evaluator_optimizer` | object | The evaluator configuration. | `false` | [Evaluator](#evaluator) |
@@ -214,6 +214,7 @@ For supported workflow example configurations, see the [Config Examples](config_
 | `model_name` | string | The model to use for the orchestrator agent. | `false` | `llama3.2:3b` |
 | `temperature` | number | The temperature to use for the orchestrator agent. | `false` | `0.0` |
 | `aggregator` | string | The name of the aggregator agent. | `true` | `AggregatorAgent` |
+| `next_agent` | string | The next agent to take after the orchestration. If not specified, defaults to `__end__` representing end of the workflow. | `false` | `NextAgent` |
 | `prompt` | string | The prompt to use for the orchestrator agent. | `true` | `You are an agent that orchestrates the workflow.` |
 | `prompt_file` | string | The prompt file to use for the orchestrator agent. | `false` | `prompt.txt` |
 | `output_decision_keys` | string[] | The keys in the output that will be used in the workflow state. | `false` | `["decision_key"]` |
@@ -234,6 +235,7 @@ For supported workflow example configurations, see the [Config Examples](config_
 | `executor` | string | The name of the executor agent. | `true` | `ExecutorAgent` |
 | `evaluator` | string | The name of the evaluator agent. | `true` | `EvaluatorAgent` |
 | `optimizer` | string | The name of the optimizer agent. | `true` | `OptimizerAgent` |
+| `next_agent` | string | The next agent to take after the evaluation. If not specified, defaults to `__end__` representing end of the workflow. | `false` | `AggregatorAgent` |
 | `quality_condition` | string | The quality condition for the evaluator agent. | `true` | `lambda state: state.get('quality_score', 0) >= state.get('quality_threshold', 0.8)` |
 | `max_iterations` | integer | The maximum number of iterations for the evaluator agent. | `false` | `5` |
 

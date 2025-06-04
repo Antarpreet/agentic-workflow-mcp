@@ -1,0 +1,127 @@
+{
+    "default_model": "llama3.2:3b",
+    "default_temperature": 0.0,
+    "state_schema": {
+        "type": "object",
+        "properties": {
+            "quality_score": {
+                "type": "number"
+            },
+            "quality_threshold": {
+                "type": "number"
+            },
+            "iteration_count": {
+                "type": "integer"
+            }
+        },
+        "required": [
+            "quality_score",
+            "quality_threshold",
+            "iteration_count"
+        ]
+    },
+    "agents": [
+        {
+            "name": "IdeaGeneratorAgent",
+            "prompt": "Generate a complex idea, process, or product that could be improved. The output should be detailed enough to require multiple iterations for meaningful improvement.",
+            "tools": []
+        },
+        {
+            "name": "InitialImproverAgent",
+            "prompt": "You are an agent that takes the generated idea/process/product and provides an initial improvement. Respond with only the improved version.",
+            "tools": []
+        },
+        {
+            "name": "SecondaryImproverAgent",
+            "prompt": "You are an agent that further improves upon the previous improvement. Respond with only the improved version.",
+            "tools": []
+        },
+        {
+            "name": "TertiaryImproverAgent",
+            "prompt": "You are an agent that makes additional refinements to the improved idea/process/product. Respond with only the improved version.",
+            "tools": []
+        },
+        {
+            "name": "QualityEvaluatorAgent",
+            "prompt": "Evaluate the quality of the current improved idea/process/product. Rate it from 0 (poor) to 1 (excellent).",
+            "tools": [],
+            "output_decision_keys": [
+                "quality_score"
+            ],
+            "output_format": {
+                "type": "object",
+                "properties": {
+                    "quality_score": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1
+                    }
+                },
+                "required": [
+                    "quality_score"
+                ]
+            }
+        },
+        {
+            "name": "ImprovementSuggesterAgent",
+            "prompt": "If the quality is below 1, suggest concrete improvements to enhance the idea/process/product.",
+            "tools": []
+        },
+        {
+            "name": "FinalizationAgent",
+            "prompt": "Respond with the final improved version of the idea/process/product.",
+            "tools": []
+        },
+        {
+            "name": "ConfirmationAgent",
+            "prompt": "Confirm and present the final improved version of the idea/process/product.",
+            "tools": []
+        }
+    ],
+    "edges": [
+        {
+            "source": "__start__",
+            "target": "IdeaGeneratorAgent"
+        },
+        {
+            "source": "IdeaGeneratorAgent",
+            "target": "InitialImproverAgent"
+        },
+        {
+            "source": "InitialImproverAgent",
+            "target": "SecondaryImproverAgent"
+        },
+        {
+            "source": "SecondaryImproverAgent",
+            "target": "TertiaryImproverAgent"
+        },
+        {
+            "source": "TertiaryImproverAgent",
+            "target": "QualityEvaluatorAgent"
+        },
+        {
+            "source": "QualityEvaluatorAgent",
+            "target": "ImprovementSuggesterAgent"
+        },
+        {
+            "source": "ImprovementSuggesterAgent",
+            "target": "FinalizationAgent"
+        },
+        {
+            "source": "FinalizationAgent",
+            "target": "ConfirmationAgent"
+        },
+        {
+            "source": "ConfirmationAgent",
+            "target": "__end__"
+        }
+    ],
+    "evaluator_optimizer": {
+        "executor": "InitialImproverAgent",
+        "evaluator": "QualityEvaluatorAgent",
+        "optimizer": "ImprovementSuggesterAgent",
+        "next_agent": "FinalizationAgent",
+        "quality_condition": "lambda state: float(state.get('quality_score', 0)) >= float(state.get('quality_threshold', 1))",
+        "max_iterations": 1
+    }
+}

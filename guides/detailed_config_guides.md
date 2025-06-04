@@ -16,6 +16,7 @@ This guide provides a detailed explanation of each example configuration in the 
 - [Evaluator-Optimizer Workflow (`evaluator_optimizer_config.json`)](#evaluator-optimizer-workflow-evaluator_optimizer_configjson)
 - [Explicit Edges Workflow (`explicit_edges_config.json`)](#explicit-edges-workflow-explicit_edges_configjson)
 - [Complex Combined Workflow (`complex_combined_config.json`)](#complex-combined-workflow-complex_combined_configjson)
+- [Complex Evaluator-Optimizer Workflow (`complex_evaluator_optimizer_config.json`)](#complex-evaluator-optimizer-workflow-complex_evaluator_optimizer_configjson)
 
 ---
 
@@ -339,6 +340,50 @@ Combine multiple workflow patterns (sequential, parallel, branching, evaluation)
 **How to Adapt:**
 
 - Add more branches, parallel tasks, or evaluation criteria as needed.
+
+---
+
+## Complex Evaluator-Optimizer Workflow (`complex_evaluator_optimizer_config.json`)
+
+**Purpose:**
+
+Add evaluation and optimization steps to ensure output quality, with iterative improvement if needed in a complex workflow with defined edges.
+
+**How it works:**
+
+- `IdeaGeneratorAgent` creates a detailed, complex idea, process, or product that requires multiple rounds of improvement.
+- `InitialImproverAgent` takes the original idea and provides the first round of improvements.
+- `SecondaryImproverAgent` further enhances the improved idea.
+- `TertiaryImproverAgent` makes additional refinements to the idea or product.
+- `QualityEvaluatorAgent` evaluates the current version and assigns a quality score from 0 (poor) to 1 (excellent).
+- If the quality score is below 1, `ImprovementSuggesterAgent` proposes concrete ways to enhance the idea.
+- `FinalizationAgent` produces the final improved version after all necessary iterations.
+- `ConfirmationAgent` confirms and presents the finalized, improved idea, process, or product.
+
+**Agent Roles:**
+
+- `IdeaGeneratorAgent`: Generates a detailed, complex idea, process, or product that requires multiple rounds of improvement.
+- `InitialImproverAgent`: Provides the first round of improvements to the generated idea.
+- `SecondaryImproverAgent`: Further enhances the idea with additional improvements.
+- `TertiaryImproverAgent`: Makes further refinements to the improved idea or product.
+- `QualityEvaluatorAgent`: Evaluates the current version and assigns a quality score from 0 (poor) to 1 (excellent).
+- `ImprovementSuggesterAgent`: Suggests concrete ways to enhance the idea if the quality score is below 1.
+- `FinalizationAgent`: Produces the final improved version after all necessary iterations.
+- `ConfirmationAgent`: Confirms and presents the finalized, improved idea, process, or product.
+**Special Feature:**
+
+- Multi-stage, iterative improvement pipeline with explicit agents for each refinement phase and a quality evaluation loop.
+
+**Use Case:**
+
+- Complex idea generation and enhancement, product/process design, or any scenario requiring multiple rounds of structured improvement and quality assessment.
+
+**How to Adapt:**
+
+- Adjust the number or type of improver agents for more or fewer refinement stages.
+- Modify the evaluation criteria or scoring thresholds in `QualityEvaluatorAgent`.
+- Customize prompts for domain-specific improvement or evaluation needs.
+- Add or remove agents (e.g., more improvement or validation steps) to fit your workflow.
 
 ---
 

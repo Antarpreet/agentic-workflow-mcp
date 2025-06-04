@@ -31,8 +31,7 @@
             "prompt": "Evaluate the quality of the French translation. Rate it from 0 (poor) to 1 (perfect).",
             "tools": [],
             "output_decision_keys": [
-                "quality_score",
-                "quality_threshold"
+                "quality_score"
             ],
             "output_format": {
                 "type": "object",
@@ -41,15 +40,10 @@
                         "type": "number",
                         "minimum": 0,
                         "maximum": 1
-                    },
-                    "quality_threshold": {
-                        "type": "number",
-                        "default": 0.8
                     }
                 },
                 "required": [
-                    "quality_score",
-                    "quality_threshold"
+                    "quality_score"
                 ]
             }
         },
