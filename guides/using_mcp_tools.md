@@ -24,18 +24,21 @@ The MCP server provides several tools that can be used directly from VS Code (wi
 
 ### 1. display_graph
 
-Generates a `graph.png` file in your workspace, showing the structure of your workflow (agents and their connections).
+Generates a `graph.png` file in your workspace, showing the structure of your workflow (agents and their connections). It can also generate a mermaid diagram for visualization.
 
 **Prompt Example:**
 
 ```plaintext
 Use MCP Tools to display the graph.
+or
+Use MCP Tools to display the graph as mermaid.
 ```
 
 **Example Use Cases:**
 
 - See the structure and flow of agents, routers, branches, and parallel nodes in your workflow before running it.
 - Debug or document the workflow by generating a `graph.png` file that shows how data and control move between agents.
+- Use the mermaid diagram for easy sharing in documentation or team discussions.
 - Share the workflow structure with team members or include it in documentation.
 
 ### 2. start_workflow

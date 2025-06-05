@@ -52,21 +52,21 @@ def get_agents() -> list:
 
 
 @mcp.tool()
-async def display_graph() -> str:
+async def display_graph(type: str = "image") -> str:
     """
     Generates a graph image from the workflow configuration and saves it to a file.
     The graph is generated using the LangGraph library and saved as a PNG image.
 
     Args:
-        None
+        type (str): The type of graph to generate. Possible values are "image" or "mermaid".
 
     Returns:
         str: Path to the generated graph image file.
     """
     ctx = mcp.get_context()
     app_ctx = ctx.request_context.lifespan_context
-    
-    return await display(app_ctx)
+
+    return await display(app_ctx, type=type)
 
 
 @mcp.tool()

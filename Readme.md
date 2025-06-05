@@ -294,7 +294,7 @@ These are the environment variables that are used in the MCP server. You can set
 
 ### `display_graph`
 
-Generates a graph image from the workflow configuration and saves it to a `graph.png` file in the workspace folder. This is useful for visualizing the workflow and understanding the connections between agents.
+Generates a graph image from the workflow configuration and saves it to a `graph.png` file in the workspace folder. This is useful for visualizing the workflow and understanding the connections between agents. It can also generate a mermaid diagram for the workflow.
 
 ### `start_workflow`
 

@@ -28,8 +28,10 @@ def validate_xml(xml_file_path: str, xsd_file_path: str, workspace_path: str = N
         # Run the xmllint command to validate the XML against the XSD
         command = f'xmllint --noout --schema "{xsd_full_path}" "{xml_full_path}"'
         result = run_shell_command(command)
-        return f"Validation successful: {result}"
+        if not result.strip():
+            return "Validation successful: XML is valid against the XSD schema."
+        return f"{result}"
     except Exception as e:
-        return f"Validation failed:\n{e}"
+        return f"xmllint failed:\n{e}"
     except FileNotFoundError:
         return "Error: 'xmllint' is not installed or not found in PATH."

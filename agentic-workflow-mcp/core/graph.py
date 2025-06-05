@@ -386,7 +386,7 @@ def agent_node_action(
     agent_name = agent_config["name"]
     output_format = agent_config.get("output_format", None)
     workspace_path = os.getenv("WORKSPACE_PATH", ".")
-    log_message(logs, f"Executing node: {agent_name}")
+    log_message(logs, f"Executing node: {agent_name}, model: {model.model}")
     current_input = state.get("input", "")
     log_message(logs, f"Node {agent_name} input (truncated): {current_input[:100]}...")
 

@@ -88,41 +88,52 @@ async def initialize(incoming_workflow_config: Optional[WorkflowConfig] = None, 
     )
 
 
-async def display(ctx: AppContext) -> str:
+async def display(ctx: AppContext, type: str) -> str:
     """
     Displays the workflow configuration.
 
     Args:
         ctx (AppContext): The application context containing the workflow configuration.
+        type (str): The type of graph to generate. Possible values are "image" or "mermaid".
 
     Returns:
-        str: The workflow configuration as a string.
+        str: The workflow configuration as a string or path to image.
     """
     logs = []
-    output_path = None
     workflow_config: WorkflowConfig = ctx.workflow_config
-    
+
     try:
         # Generate the graph from the workflow configuration
         graph = generate_graph_from_workflow(workflow_config, logs, ctx)
+        graph_obj = graph.get_graph()
     except Exception as e:
         log_message(logs, f"Error: generating graph: {str(e)} {repr(e)}")
         return
 
+    def get_mermaid():
+        try:
+            mermaid_definition = graph_obj.draw_mermaid()
+            log_message(logs, "Mermaid graph generated successfully.")
+            return mermaid_definition
+        except Exception as e:
+            log_message(logs, f"Error: generating mermaid graph: {str(e)}")
+            return
+
+    if type == "mermaid":
+        return get_mermaid()
+
+    # type == "image" or anything else
     try:
-        # Generate the PNG image bytes
-        image_bytes = graph.get_graph().draw_mermaid_png()
-        # Define the output file path
-        output_path = os.getenv("WORKSPACE_PATH", ".") + "/graph.png"
-        # Write the image bytes to a local file
+        image_bytes = graph_obj.draw_mermaid_png()
+        output_path = os.path.join(os.getenv("WORKSPACE_PATH", "."), "graph.png")
         with open(output_path, "wb") as f:
             f.write(image_bytes)
         log_message(logs, f"Graph image successfully saved to {output_path}")
-        
+        return output_path
     except Exception as e:
         log_message(logs, f"Error: generating or saving graph image: {str(e)}")
-
-    return output_path
+        # Fallback to mermaid if image fails
+        return get_mermaid()
 
 
 async def process(ctx: AppContext, user_prompt: str) -> dict:
