@@ -17,7 +17,7 @@ from langchain.tools import  StructuredTool
 
 from tools.api_fetch import api_fetch
 from tools.embedding_retriever import retrieve_embeddings, modify_embeddings
-from tools.file_system import list_files, read_file, read_multiple_files, write_file, write_file_lines, append_file, append_file_lines
+from tools.file_system import list_files, read_file, read_multiple_files, read_multiple_files_with_id, write_file, write_file_lines, append_file, append_file_lines
 from tools.shell_command import run_shell_command
 from tools.web_search import web_search
 from tools.xml import validate_xml
@@ -464,6 +464,8 @@ def add_tools(agent_config: AgentConfig, agent_name: str, logs: list) -> list:
             agent_tools.append(tool_function if tool_function else read_file)
         elif tool_name == "read_multiple_files":
             agent_tools.append(tool_function if tool_function else read_multiple_files)
+        elif tool_name == "read_multiple_files_with_id":
+            agent_tools.append(tool_function if tool_function else read_multiple_files_with_id)
         elif tool_name == "list_files":
             agent_tools.append(tool_function if tool_function else list_files)
         elif tool_name == "write_file":

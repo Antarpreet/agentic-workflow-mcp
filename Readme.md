@@ -352,6 +352,14 @@ Reads the content of multiple files and returns them as a single string.
 | `file_paths` | string[] | The paths to the files to read. | `true` | `[]` |
 | `workspace_path` | string | The workspace path to the files to read. | `false` | `${workspaceFolder}` |
 
+### `read_multiple_files_with_id`
+Reads the content of multiple files and returns them as an object with file IDs as keys and file contents as values.
+| Item | Type | Description | Required | Defaults |
+| --- | --- | --- | --- | --- |
+| `file_paths` | string[] | The paths to the files to read. | `true` | `[]` |
+| `workspace_path` | string | The workspace path to the files to read. | `false` | `${workspaceFolder}` |
+
+
 ### `list_files`
 
 Lists all files in a given directory.
