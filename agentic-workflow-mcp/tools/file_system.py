@@ -1,4 +1,5 @@
 import os
+import json
 
 from langchain.tools import tool
 
@@ -91,7 +92,6 @@ def read_multiple_files_with_id(file_paths: list, workspace_path: str = None) ->
     Returns:
         str: A JSON string mapping file IDs to their contents.
     """
-    import json
     contents = {}
     for file_path in file_paths:
         full_path = resolve_path(file_path, workspace_path)
