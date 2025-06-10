@@ -14,6 +14,7 @@ For supported workflow example configurations, see the [Config Examples](config_
 - [Detailed Config Guides](guides/detailed_config_guides.md)
 - [Environment Variables](#environment-variables)
 - [MCP Tools](#mcp-tools)
+- [MCP Resources](#mcp-resources)
 - [Using MCP Tools](guides/using_mcp_tools.md)
 - [Custom Embeddings for RAG](#custom-embeddings-for-rag)
 - [Local LLM Tools](#local-llm-tools)
@@ -94,7 +95,10 @@ For supported workflow example configurations, see the [Config Examples](config_
                     "run",
                     "mcp",
                     "run",
-                    "agentic-workflow-mcp/server.py"
+                    // Linux/MacOS
+                    "~/agentic-workflow-mcp/server.py"
+                    // Windows
+                    "%USERPROFILE%\\agentic-workflow-mcp\\server.py"
                 ],
                 "env": {
                     "WORKSPACE_PATH": "${workspaceFolder}",
@@ -113,7 +117,7 @@ For supported workflow example configurations, see the [Config Examples](config_
         Windows:
 
         ```cmd
-        xcopy /E /I agentic-workflow-mcp %homedrive%%homepath%\agentic-workflow-mcp
+        xcopy /E /I agentic-workflow-mcp %USERPROFILE%\agentic-workflow-mcp
         ```
 
         Mac/Linux:
@@ -309,6 +313,21 @@ This tool creates embeddings for one or more files and stores them in the local 
 Generates a 2D or 3D visualization of the embeddings in the local ChromaDB vector database. This is useful for understanding the distribution of the embeddings and identifying clusters or patterns in the data.
 
 ---
+
+## MCP Resources
+
+These can be accessed using `MCP: Browse Resources` command in the Command Palette (Ctrl+Shift+P or Cmd+Shift+P on Mac).
+
+### `get_agents`
+
+Returns the list of agents defined in the workflow configuration.
+
+### `get_state_schema`
+
+Returns the state schema defined in the workflow configuration containing both default and user-defined properties.
+
+---
+
 
 ## Custom Embeddings for RAG
 

@@ -8,7 +8,14 @@ from langchain.schema.embeddings import Embeddings
 from langchain.schema.retriever import BaseRetriever
 from langchain.schema.vectorstore import VectorStore
 from mcp.server.fastmcp import FastMCP
+import os
+import sys
 
+# Determine the log file path based on the platform
+if sys.platform.startswith("win"):
+    log_file_path = os.path.expandvars(r"%USERPROFILE%\agentic-workflow-mcp\logs.txt")
+else:
+    log_file_path = os.path.expanduser("~/agentic-workflow-mcp/logs.txt")
 
 DEFAULT_WORKFLOW_CONFIG = {
     "embedding_model": "nomic-embed-text",
@@ -18,7 +25,7 @@ DEFAULT_WORKFLOW_CONFIG = {
     "collection_name": "langchain_chroma_collection",
     "default_orchestrator_completion_condition": "lambda state: state.get('final_output') is not None",
     "delete_missing_embeddings": True,
-    "log_file_path": "agentic-workflow-mcp/logs.txt",
+    "log_file_path": log_file_path,
     "state_schema": {
         "type": "object",
         "properties": {

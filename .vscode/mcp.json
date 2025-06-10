@@ -9,7 +9,7 @@
                 "run",
                 "mcp",
                 "run",
-                "agentic-workflow-mcp/server.py"
+                "%USERPROFILE%\\agentic-workflow-mcp\\server.py"
             ],
             "env": {
                 "WORKSPACE_PATH": "${workspaceFolder}",

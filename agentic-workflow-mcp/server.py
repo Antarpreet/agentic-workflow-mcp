@@ -1,12 +1,13 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import List, Union
+from typing import List
 
 from mcp.server.fastmcp import FastMCP
 
 from core.internal import initialize, display, process, embed, embed_visualize
 from core.log import log_message
 from core.model import AppContext, WorkflowConfig
+from core.util import get_full_schema
 
 @asynccontextmanager
 async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
@@ -34,7 +35,7 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
 mcp = FastMCP("Local Agentic Workflow MCP Server", lifespan=app_lifespan)
 
 
-@mcp.resource("resource://agentic-workflow-mcp/agents")
+@mcp.resource("resource://agentic-workflow-mcp/agents.json")
 def get_agents() -> list:
     """
     Returns the list of agents defined in the workflow configuration.
@@ -46,9 +47,28 @@ def get_agents() -> list:
         list: List of agent dictionaries with name and description.
     """
     ctx = mcp.get_context()
-    workflow_config: WorkflowConfig = ctx.workflow_config
+    app_ctx = ctx.request_context.lifespan_context
+    workflow_config: WorkflowConfig = app_ctx.workflow_config
     agents = workflow_config.get("agents", [])
-    return [{"name": agent["name"], "description": agent.get("description", "")} for agent in agents]
+    return agents
+
+
+@mcp.resource("resource://agentic-workflow-mcp/state_schema.json")
+def get_state_schema() -> dict:
+    """
+    Returns the state schema defined in the workflow configuration containing both default and user-defined properties.
+
+    Args:
+        None
+
+    Returns:
+        dict: Dictionary representing the state schema.
+    """
+    ctx = mcp.get_context()
+    app_ctx = ctx.request_context.lifespan_context
+    workflow_config: WorkflowConfig = app_ctx.workflow_config
+    state_schema = get_full_schema(workflow_config)
+    return state_schema
 
 
 @mcp.tool()

@@ -17,7 +17,10 @@ from langchain.tools import  StructuredTool
 
 from tools.api_fetch import api_fetch
 from tools.embedding_retriever import retrieve_embeddings, modify_embeddings
-from tools.file_system import list_files, read_file, read_multiple_files, read_multiple_files_with_id, write_file, write_file_lines, append_file, append_file_lines
+from tools.file_system import (
+    list_files, read_file, read_multiple_files, read_multiple_files_with_id,
+    write_file, write_file_lines, append_file, append_file_lines
+)
 from tools.shell_command import run_shell_command
 from tools.web_search import web_search
 from tools.xml import validate_xml
@@ -25,7 +28,7 @@ from core.log import log_message
 from core.model import DefaultWorkflowState, DEFAULT_WORKFLOW_CONFIG, WorkflowConfig, AgentConfig, AppContext
 from core.util import typed_dict_from_json_schema, get_full_schema, ensure_utf8
 
-def generate_graph_from_workflow(workflow_config: WorkflowConfig, logs: list, ctx: AppContext) -> CompiledStateGraph:
+def generate_graph_from_workflow(workflow_config: WorkflowConfig, logs: list, app_ctx: AppContext) -> CompiledStateGraph:
     """
     Generates a graph from the workflow configuration supporting flexible LangGraph structures
     including conditional branching, dynamic routing, parallel execution, orchestrator-worker pattern, 
@@ -35,7 +38,7 @@ def generate_graph_from_workflow(workflow_config: WorkflowConfig, logs: list, ct
         workflow_config (WorkflowConfig): The workflow configuration dictionary.
         user_prompt (str): The user prompt to process.
         logs (list): List to store log messages during graph generation and execution.
-        ctx (AppContext): The MCP context containing application resources like the default LLM.
+        app_ctx (AppContext): The MCP context containing application resources like the default LLM.
 
     Returns:
         Compiled StateGraph: The compiled sequential state graph ready for execution.
@@ -56,11 +59,11 @@ def generate_graph_from_workflow(workflow_config: WorkflowConfig, logs: list, ct
         return graph.compile() # Return an empty but compiled graph
 
     # Add all nodes to the graph based on the agents defined in the workflow config
-    add_nodes(graph, agents, workflow_config, ctx, logs)
+    add_nodes(graph, agents, workflow_config, app_ctx, logs)
 
     if "orchestrator" in workflow_config:
         # Handle orchestrator-worker pattern if specified
-        handle_orchestrator_flow(workflow_config, graph, ctx, logs)
+        handle_orchestrator_flow(workflow_config, graph, app_ctx, logs)
     if "evaluator_optimizer" in workflow_config:
         # Handle evaluator-optimizer pattern if specified
         handle_evaluator_optimizer_flow(workflow_config, graph, logs)
@@ -121,7 +124,10 @@ def prepare_prompt_and_flags(agent_name: str, prompt_template: str, workflow_con
     return prompt_template, is_parallel_node, is_orchestrator_worker_node
 
 
-def invoke_llm(state: dict, model: ChatOllama, prompt_template: str, current_input: str, tools: list, output_format: dict, agent_name: str, agent_config: AgentConfig, workflow_config: WorkflowConfig, logs: list) -> str:
+def invoke_llm(
+        state: dict, model: ChatOllama, prompt_template: str, current_input: str, tools: list, output_format: dict, agent_name: str,
+        agent_config: AgentConfig, workflow_config: WorkflowConfig, logs: list
+    ) -> str:
     """
     Invokes the LLM with the given prompt template and input, ensuring all inputs are UTF-8 encoded.
 
@@ -203,7 +209,7 @@ def invoke_llm(state: dict, model: ChatOllama, prompt_template: str, current_inp
 
 def handle_tool_calls(
         llm_response: AIMessage, tools: list, logs: list, workspace_path: str,
-        agent_config: AgentConfig, retrieval_chain: Chain, vectorstore: VectorStore, ctx: AppContext
+        agent_config: AgentConfig, retrieval_chain: Chain, vectorstore: VectorStore, app_ctx: AppContext
     ) -> dict:
     """
     Handles tool calls from the LLM response and executes them.
@@ -216,7 +222,7 @@ def handle_tool_calls(
         agent_config (AgentConfig): The configuration for this agent node.
         retrieval_chain (Chain): The retrieval chain for RAG.
         vectorstore (VectorStore): The vector store for embeddings.
-        ctx (AppContext): The MCP context containing application resources.
+        app_ctx (AppContext): The MCP context containing application resources.
     
     Returns:
         dict: A dictionary containing the results of the tool calls.
@@ -229,7 +235,7 @@ def handle_tool_calls(
             arguments = tool_call.get("args", {})
             arguments["workspace_path"] = workspace_path
             arguments["logs"] = logs
-            arguments["ctx"] = ctx
+            arguments["app_ctx"] = app_ctx
             if collection_name:
                 arguments["retrieval_chain"] = retrieval_chain
                 arguments["vectorstore"] = vectorstore
@@ -293,7 +299,7 @@ def parse_llm_response(llm_response: AIMessage, output_format: str) -> dict:
 
 def process_llm_response(
     llm_response: AIMessage, agent_name: str, agent_config: AgentConfig, output_format: dict, state: dict, workflow_config: WorkflowConfig,
-    is_parallel_node: bool, logs: list, workspace_path: str, tools: list, ctx: AppContext, retrieval_chain: Chain,
+    is_parallel_node: bool, logs: list, workspace_path: str, tools: list, app_ctx: AppContext, retrieval_chain: Chain,
     vectorstore: VectorStore
 ) -> dict:
     """
@@ -310,7 +316,7 @@ def process_llm_response(
         logs (list): List to store log messages during processing.
         workspace_path (str): The workspace path for file operations.
         tools (list): List of tools available to the agent.
-        ctx (AppContext): The MCP context containing application resources.
+        app_ctx (AppContext): The MCP context containing application resources.
         retrieval_chain (Chain): The retrieval chain for RAG.
         vectorstore (VectorStore): The vector store for embeddings.
 
@@ -319,7 +325,7 @@ def process_llm_response(
     """
     try:
         llm_response_json = handle_tool_calls(
-            llm_response, tools, logs, workspace_path, agent_config, retrieval_chain, vectorstore, ctx
+            llm_response, tools, logs, workspace_path, agent_config, retrieval_chain, vectorstore, app_ctx
         )
         if llm_response_json is None:
             llm_response_json = parse_llm_response(llm_response, output_format)
@@ -363,7 +369,7 @@ def process_llm_response(
 def agent_node_action(
         state: dict, model: ChatOllama, prompt_template: str, tools: list,
         agent_config: AgentConfig, workflow_config: WorkflowConfig,
-        logs: list, ctx: AppContext, retrieval_chain: Chain, vectorstore: VectorStore
+        logs: list, app_ctx: AppContext, retrieval_chain: Chain, vectorstore: VectorStore
     ) -> dict:
     """
     Executes the action for a specific agent node in the graph.
@@ -376,7 +382,7 @@ def agent_node_action(
         agent_config (AgentConfig): The configuration for this agent node.
         workflow_config (WorkflowConfig): The workflow configuration dictionary.
         logs (list): List to store log messages during execution.
-        ctx (AppContext): The MCP context containing application resources.
+        app_ctx (AppContext): The MCP context containing application resources.
         retrieval_chain (Chain): The retrieval chain for RAG.
         vectorstore (VectorStore): The vector store for embeddings.
 
@@ -404,7 +410,7 @@ def agent_node_action(
 
     update_dict = process_llm_response(
         llm_response, agent_name, agent_config, output_format, state, workflow_config,
-        is_parallel_node, logs, workspace_path, tools, ctx, retrieval_chain, vectorstore
+        is_parallel_node, logs, workspace_path, tools, app_ctx, retrieval_chain, vectorstore
     )
 
     if not state.get("user_input"):
@@ -460,34 +466,25 @@ def add_tools(agent_config: AgentConfig, agent_name: str, logs: list) -> list:
                 )
         # Map tool names from config to actual tool functions
         # Assumes tool functions are accessible in the current scope (e.g., imported)
-        if tool_name == "read_file":
-            agent_tools.append(tool_function if tool_function else read_file)
-        elif tool_name == "read_multiple_files":
-            agent_tools.append(tool_function if tool_function else read_multiple_files)
-        elif tool_name == "read_multiple_files_with_id":
-            agent_tools.append(tool_function if tool_function else read_multiple_files_with_id)
-        elif tool_name == "list_files":
-            agent_tools.append(tool_function if tool_function else list_files)
-        elif tool_name == "write_file":
-            agent_tools.append(tool_function if tool_function else write_file)
-        elif tool_name == "write_file_lines":
-            agent_tools.append(tool_function if tool_function else write_file_lines)
-        elif tool_name == "append_file":
-            agent_tools.append(tool_function if tool_function else append_file)
-        elif tool_name == "append_file_lines":
-            agent_tools.append(tool_function if tool_function else append_file_lines)
-        elif tool_name == "web_search":
-            agent_tools.append(tool_function if tool_function else web_search)
-        elif tool_name == "api_fetch":
-            agent_tools.append(tool_function if tool_function else api_fetch)
-        elif tool_name == "retrieve_embeddings":
-            agent_tools.append(tool_function if tool_function else retrieve_embeddings)
-        elif tool_name == "modify_embeddings":
-            agent_tools.append(tool_function if tool_function else modify_embeddings)
-        elif tool_name == "run_shell_command":
-            agent_tools.append(tool_function if tool_function else run_shell_command)
-        elif tool_name == "validate_xml":
-            agent_tools.append(tool_function if tool_function else validate_xml)
+        # Map tool names to their corresponding functions for efficient lookup
+        tool_map = {
+            "read_file": read_file,
+            "read_multiple_files": read_multiple_files,
+            "read_multiple_files_with_id": read_multiple_files_with_id,
+            "list_files": list_files,
+            "write_file": write_file,
+            "write_file_lines": write_file_lines,
+            "append_file": append_file,
+            "append_file_lines": append_file_lines,
+            "web_search": web_search,
+            "api_fetch": api_fetch,
+            "retrieve_embeddings": retrieve_embeddings,
+            "modify_embeddings": modify_embeddings,
+            "run_shell_command": run_shell_command,
+            "validate_xml": validate_xml,
+        }
+        if tool_name in tool_map:
+            agent_tools.append(tool_function if tool_function else tool_map[tool_name])
         else:
             log_message(logs, f"Warning: Tool '{tool_name}' for agent '{agent_name}' is defined in config but not mapped to a function.")
     log_message(logs, f"Tools configured for {agent_name}: {[getattr(t, '__name__', str(t)) for t in agent_tools]}")
@@ -495,7 +492,7 @@ def add_tools(agent_config: AgentConfig, agent_name: str, logs: list) -> list:
     return agent_tools
 
 
-def add_nodes(graph: StateGraph, agents: list, workflow_config: WorkflowConfig, ctx: AppContext, logs: list) -> None:
+def add_nodes(graph: StateGraph, agents: list, workflow_config: WorkflowConfig, app_ctx: AppContext, logs: list) -> None:
     """
     Adds nodes to the graph based on the agents defined in the workflow configuration.
 
@@ -503,7 +500,7 @@ def add_nodes(graph: StateGraph, agents: list, workflow_config: WorkflowConfig, 
         graph (StateGraph): The state graph to which nodes will be added.
         agents (list): List of agent configurations from the workflow config.
         workflow_config (WorkflowConfig): The workflow configuration dictionary.
-        ctx (AppContext): The MCP context containing application resources.
+        app_ctx (AppContext): The MCP context containing application resources.
         logs (list): List to store log messages during node addition.
 
     Returns:
@@ -528,7 +525,7 @@ def add_nodes(graph: StateGraph, agents: list, workflow_config: WorkflowConfig, 
             log_message(logs, f"Using specific model for {agent_name}: {model_name}")
         else:
             # Fallback to the default LLM from the application context
-            model = ctx.llm
+            model = app_ctx.llm
             log_message(logs, f"Using default LLM for {agent_name}")
         
         # Check if the agent has a specific embeddings collection name
@@ -538,9 +535,9 @@ def add_nodes(graph: StateGraph, agents: list, workflow_config: WorkflowConfig, 
             rag_prompt_template = workflow_config.get("rag_prompt_template", DEFAULT_WORKFLOW_CONFIG["rag_prompt_template"])
             # Initialize Chroma as a LangChain vectorstore using Ollama embeddings
             vectorstore = Chroma(
-                client=ctx.chroma_client,
+                client=app_ctx.chroma_client,
                 collection_name=collection_name,
-                embedding_function=ctx.embedding_model,
+                embedding_function=app_ctx.embedding_model,
                 persist_directory=persist_directory
             )
 
@@ -552,8 +549,8 @@ def add_nodes(graph: StateGraph, agents: list, workflow_config: WorkflowConfig, 
             document_chain = create_stuff_documents_chain(model, prompt)
             retrieval_chain = create_retrieval_chain(retriever, document_chain)
         else:
-            vectorstore = ctx.vectorstore
-            retrieval_chain = ctx.retrieval_chain
+            vectorstore = app_ctx.vectorstore
+            retrieval_chain = app_ctx.retrieval_chain
 
         # Get the prompt template for the agent
         # Default to just passing the input if no prompt is specified
@@ -587,7 +584,7 @@ def add_nodes(graph: StateGraph, agents: list, workflow_config: WorkflowConfig, 
             agent_config=agent_config,
             workflow_config=workflow_config,
             logs=logs,
-            ctx=ctx,
+            app_ctx=app_ctx,
             retrieval_chain=retrieval_chain,
             vectorstore=vectorstore
         )
@@ -597,14 +594,14 @@ def add_nodes(graph: StateGraph, agents: list, workflow_config: WorkflowConfig, 
         log_message(logs, f"Added node '{agent_name}' to the graph.")
 
 
-def handle_orchestrator_flow(workflow_config: WorkflowConfig, graph: StateGraph, ctx: AppContext, logs: list) -> None:
+def handle_orchestrator_flow(workflow_config: WorkflowConfig, graph: StateGraph, app_ctx: AppContext, logs: list) -> None:
     """
     Handles the orchestrator-worker pattern in the workflow configuration.
 
     Args:
         workflow_config (WorkflowConfig): The workflow configuration dictionary.
         graph (StateGraph): The state graph to which nodes will be added.
-        ctx (AppContext): The MCP context containing application resources.
+        app_ctx (AppContext): The MCP context containing application resources.
 
     Returns:
         None
@@ -621,7 +618,7 @@ def handle_orchestrator_flow(workflow_config: WorkflowConfig, graph: StateGraph,
     agent_names = [agent["name"] for agent in workflow_config.get("agents", [])]
     if orchestrator_name not in agent_names:
         # Use add_nodes to add orchestrator as a node
-        add_nodes(graph, [orchestrator_config], workflow_config, ctx, logs)
+        add_nodes(graph, [orchestrator_config], workflow_config, app_ctx, logs)
 
     # Connect orchestrator to workers and back
     for worker in workers:

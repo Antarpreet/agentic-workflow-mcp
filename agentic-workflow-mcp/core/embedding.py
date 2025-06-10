@@ -15,14 +15,14 @@ from tools.file_system import read_file
 from core.log import log_message
 
 def update_embeddings(
-        file_paths: List[str], ctx: AppContext, vectorstore: VectorStore = None, collection_name: str = None, use_git_ignore: bool = False, exclude_file_paths: List[str] = None
+        file_paths: List[str], app_ctx: AppContext, vectorstore: VectorStore = None, collection_name: str = None, use_git_ignore: bool = False, exclude_file_paths: List[str] = None
     ) -> dict:
     """
     Update embeddings for files by creating new ones and deleting outdated ones.
     
     Args:
         file_paths: Path to list of file paths or folders to embed
-        ctx: The MCP context containing application resources
+        app_ctx: The MCP context containing application resources
         vectorstore: The vector store to use. If not provided, it will be retrieved from the context.
         collection_name: Name of the ChromaDB collection to use. If not provided, it will be retrieved from the context.
         use_git_ignore: If True, skips files that are ignored by .gitignore.
@@ -31,7 +31,7 @@ def update_embeddings(
     Returns:
         dict: Information about the update operation, including created and deleted embeddings
     """
-    workflow_config: WorkflowConfig = ctx.workflow_config
+    workflow_config: WorkflowConfig = app_ctx.workflow_config
     local_collection_name = collection_name or workflow_config.get("collection_name", DEFAULT_WORKFLOW_CONFIG["collection_name"])
     delete_missing = workflow_config.get("delete_missing_embeddings", DEFAULT_WORKFLOW_CONFIG["delete_missing_embeddings"])
     logs = []
@@ -125,8 +125,8 @@ def update_embeddings(
         log_message(logs, f"Filtered out files based on exclude_file_paths: {file_paths}")
 
     # Get resources from context
-    chroma_client: ClientAPI = ctx.chroma_client
-    local_vectorstore: VectorStore = ctx.vectorstore
+    chroma_client: ClientAPI = app_ctx.chroma_client
+    local_vectorstore: VectorStore = app_ctx.vectorstore
 
     if vectorstore:
         local_vectorstore = vectorstore
@@ -229,12 +229,12 @@ def update_embeddings(
     }
 
 
-def visualize(ctx: AppContext, collection_name: str = None) -> str:
+def visualize(app_ctx: AppContext, collection_name: str = None) -> str:
     """
     Visualize embeddings from a ChromaDB collection using PCA and Plotly.
 
     Args:
-        ctx: The MCP context containing application resources
+        app_ctx: The MCP context containing application resources
         collection_name: Name of the ChromaDB collection to visualize.
 
     This function connects to the ChromaDB database using the provided context,
@@ -245,7 +245,7 @@ def visualize(ctx: AppContext, collection_name: str = None) -> str:
     try:
         log_message(logs, f"Visualizing embeddings from collection: {collection_name}")
 
-        chroma = ctx.chroma_client
+        chroma = app_ctx.chroma_client
         collection = chroma.get_collection(collection_name)
 
         log_message(logs, f"Collection name: {collection_name}")

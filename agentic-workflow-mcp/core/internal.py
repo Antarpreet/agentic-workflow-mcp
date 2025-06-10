@@ -88,23 +88,23 @@ async def initialize(incoming_workflow_config: Optional[WorkflowConfig] = None, 
     )
 
 
-async def display(ctx: AppContext, type: str) -> str:
+async def display(app_ctx: AppContext, type: str) -> str:
     """
     Displays the workflow configuration.
 
     Args:
-        ctx (AppContext): The application context containing the workflow configuration.
+        app_ctx (AppContext): The application context containing the workflow configuration.
         type (str): The type of graph to generate. Possible values are "image" or "mermaid".
 
     Returns:
         str: The workflow configuration as a string or path to image.
     """
     logs = []
-    workflow_config: WorkflowConfig = ctx.workflow_config
+    workflow_config: WorkflowConfig = app_ctx.workflow_config
 
     try:
         # Generate the graph from the workflow configuration
-        graph = generate_graph_from_workflow(workflow_config, logs, ctx)
+        graph = generate_graph_from_workflow(workflow_config, logs, app_ctx)
         graph_obj = graph.get_graph()
     except Exception as e:
         log_message(logs, f"Error: generating graph: {str(e)} {repr(e)}")
@@ -136,12 +136,12 @@ async def display(ctx: AppContext, type: str) -> str:
         return get_mermaid()
 
 
-async def process(ctx: AppContext, user_prompt: str) -> dict:
+async def process(app_ctx: AppContext, user_prompt: str) -> dict:
     """
     Processes the user prompt using the workflow configuration.
 
     Args:
-        ctx (AppContext): The application context containing the workflow configuration.
+        app_ctx (AppContext): The application context containing the workflow configuration.
         user_prompt (str): The user prompt to process.
 
     Returns:
@@ -149,13 +149,13 @@ async def process(ctx: AppContext, user_prompt: str) -> dict:
     """
     logs = []
     log_message(logs, f"Starting workflow with user prompt: {user_prompt}")
-    workflow_config: WorkflowConfig = ctx.workflow_config
+    workflow_config: WorkflowConfig = app_ctx.workflow_config
     recursion_limit = workflow_config.get("recursion_limit", DEFAULT_WORKFLOW_CONFIG["recursion_limit"])
 
     start_time = time.time()
     try:
         # Generate the graph from the workflow configuration
-        graph = generate_graph_from_workflow(workflow_config, logs, ctx)
+        graph = generate_graph_from_workflow(workflow_config, logs, app_ctx)
 
         # Execute the graph with the user prompt
         response = graph.invoke(input={"input": user_prompt}, config={"recursion_limit": recursion_limit})
@@ -173,12 +173,12 @@ async def process(ctx: AppContext, user_prompt: str) -> dict:
     return response
 
 
-async def embed(ctx: AppContext, file_paths: List[str]) -> dict:
+async def embed(app_ctx: AppContext, file_paths: List[str]) -> dict:
     """
     Embeds the given files or folder using the embedding model.
 
     Args:
-        ctx (AppContext): The application context containing the embedding model.
+        app_ctx (AppContext): The application context containing the embedding model.
         file_paths (List[str]): A list of file paths or folders to embed.
 
     Returns:
@@ -186,21 +186,21 @@ async def embed(ctx: AppContext, file_paths: List[str]) -> dict:
     """
     log_message([], f"Embedding files: {file_paths}")
     # Call the update_embeddings function to create or update embeddings
-    return update_embeddings(file_paths=file_paths, ctx=ctx)
+    return update_embeddings(file_paths=file_paths, app_ctx=app_ctx)
 
 
-async def embed_visualize(ctx: AppContext, collection_name: str = None) -> str:
+async def embed_visualize(app_ctx: AppContext, collection_name: str = None) -> str:
     """
     Visualizes the embeddings in the ChromaDB collection.
 
     Args:
-        ctx (AppContext): The application context containing the embedding model.
+        app_ctx (AppContext): The application context containing the embedding model.
         collection_name (str, optional): The name of the ChromaDB collection to visualize. If not provided, uses the default from workflow config.
 
     Returns:
         str: The path to the visualization image file.
     """
-    workflow_config: WorkflowConfig = ctx.workflow_config
+    workflow_config: WorkflowConfig = app_ctx.workflow_config
     workflow_collection_name = workflow_config.get("collection_name", DEFAULT_WORKFLOW_CONFIG["collection_name"])
     # Call the visualize_embeddings function to create the visualization
-    return visualize(ctx, collection_name=(collection_name or workflow_collection_name))
+    return visualize(app_ctx, collection_name=(collection_name or workflow_collection_name))
