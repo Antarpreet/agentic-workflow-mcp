@@ -79,6 +79,25 @@ def read_multiple_files(file_paths: list, workspace_path: str = None) -> str:
             contents.append(file.read())
     return "\n".join(contents)
 
+@tool
+def read_multiple_files_with_id(file_paths: list, workspace_path: str = None) -> str:
+    """
+    Reads the content of multiple files and returns them as a JSON string mapping file IDs to contents.
+
+    Args:
+        file_paths (list): A list of paths to the files to be read.
+        workspace_path (str, optional): The base directory to prepend to each file_path.
+
+    Returns:
+        str: A JSON string mapping file IDs to their contents.
+    """
+    import json
+    contents = {}
+    for file_path in file_paths:
+        full_path = resolve_path(file_path, workspace_path)
+        with open(full_path, 'r', encoding='utf-8') as file:
+            contents[file_path] = file.read()
+    return json.dumps(contents, ensure_ascii=False, indent=2)
 
 @tool
 def list_files(directory: str, workspace_path: str = None) -> list:
