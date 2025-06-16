@@ -9,3 +9,4 @@ langgraph
 scikit-learn
 plotly
 pandas
+qdrant_client

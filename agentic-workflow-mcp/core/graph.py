@@ -16,7 +16,7 @@ from langchain.schema.vectorstore import VectorStore
 from langchain.tools import  StructuredTool
 
 from tools.api_fetch import api_fetch
-from tools.embedding_retriever import retrieve_embeddings, modify_embeddings
+from tools.embedding_retriever import retrieve_embeddings, modify_embeddings, retrieve_vectors_from_qdrant, store_vectors_in_qdrant
 from tools.file_system import (
     list_files, read_file, read_multiple_files, read_multiple_files_with_id,
     write_file, write_file_lines, append_file, append_file_lines
@@ -480,6 +480,8 @@ def add_tools(agent_config: AgentConfig, agent_name: str, logs: list) -> list:
             "api_fetch": api_fetch,
             "retrieve_embeddings": retrieve_embeddings,
             "modify_embeddings": modify_embeddings,
+            "store_vectors_in_qdrant": store_vectors_in_qdrant,
+            "retrieve_vectors_from_qdrant": retrieve_vectors_from_qdrant,
             "run_shell_command": run_shell_command,
             "validate_xml": validate_xml,
         }
