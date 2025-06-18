@@ -50,7 +50,8 @@ DEFAULT_WORKFLOW_CONFIG = {
         {context}
         </context>
         Question: {input}""",
-    "vector_directory": "chroma_vector_db"
+    "vector_directory": "chroma_vector_db",
+    "default_output_decision_keys": ["class"]
 }
 
 

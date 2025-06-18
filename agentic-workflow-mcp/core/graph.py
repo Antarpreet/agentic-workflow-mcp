@@ -124,6 +124,68 @@ def prepare_prompt_and_flags(agent_name: str, prompt_template: str, workflow_con
     return prompt_template, is_parallel_node, is_orchestrator_worker_node
 
 
+def _extract_tool_output(state, extract_config, safe_prompt, agent_name, logs, is_human=False):
+    """
+    Helper function to extract tool output and update the prompt.
+    """
+    tool_output_var = extract_config.get("var_name")
+    tool_output_agent_name = extract_config.get("agent_name", None)
+    tool_output_agent_state_response = state.get(tool_output_agent_name + "_output", None)
+    tool_name = extract_config.get("tool_name")
+    response_index = extract_config.get("response_index", None)
+    response_key = extract_config.get("response_key")
+    prompt = safe_prompt
+
+    if tool_output_agent_state_response:
+        if isinstance(tool_output_agent_state_response, str):
+            try:
+                tool_output_agent_state_response = json.loads(tool_output_agent_state_response)
+            except Exception as e:
+                log_message(logs, f"Error: failed to parse tool output for {tool_output_agent_name}: {e}")
+                return prompt
+        tool_response = tool_output_agent_state_response.get(tool_name, None)
+        if tool_response:
+            if isinstance(tool_response, list) and response_index is not None:
+                try:
+                    tool_response = tool_response[response_index]
+                except IndexError:
+                    log_message(logs, f"Error: response_index {response_index} out of bounds for tool '{tool_name}' response list.")
+                    tool_response = None
+            elif isinstance(tool_response, dict) and response_key is not None:
+                if response_key in tool_response:
+                    tool_response = tool_response[response_key]
+                else:
+                    log_message(logs, f"Error: response_key '{response_key}' not found in tool '{tool_name}' response dict.")
+                    tool_response = None
+            if tool_response is None:
+                log_message(logs, f"Using full response for {tool_name}")
+                tool_response = tool_output_agent_state_response.get(tool_name, None)
+            if tool_response:
+                if f"{{{{{tool_output_var}}}}}" not in prompt:
+                    prompt += f"\n{tool_output_var}: {tool_response}"
+                else:
+                    prompt = prompt.replace(f"{{{{{tool_output_var}}}}}", str(tool_response))
+                log_message(logs, f"Node {agent_name} tool output extraction for {tool_output_var}: {tool_response}")
+    return prompt
+
+def _replace_state_vars_in_prompt(prompt, state_vars, state, agent_name, logs, prompt_type="Agent"):
+    """
+    Helper function to replace or append state variables in a prompt.
+    """
+    if not prompt:
+        prompt = ""
+    if state_vars:
+        log_message(logs, f"{prompt_type} {agent_name} state variables: {state_vars}")
+        for var in state_vars:
+            var_value = state.get(var, "")
+            if var_value:
+                if f"{{{{{var}}}}}" not in prompt:
+                    prompt += f"\n{var}: {var_value}"
+                else:
+                    prompt = prompt.replace(f"{{{{{var}}}}}", str(var_value))
+            log_message(logs, f"{prompt_type} {agent_name} prompt template {prompt}")
+    return prompt
+
 def invoke_llm(
         state: dict, model: ChatOllama, prompt_template: str, current_input: str, tools: list, output_format: dict, agent_name: str,
         agent_config: AgentConfig, workflow_config: WorkflowConfig, logs: list
@@ -174,21 +236,33 @@ def invoke_llm(
                 log_message(logs, f"Error: Human prompt file not found for {agent_name}: {human_prompt_file_path}. Using default prompt.")
             except Exception as e:
                 log_message(logs, f"Error: reading human prompt file for {agent_name}: {e}. Using default prompt.")
-        agent_state_vars = agent_config.get("human_prompt_state_vars", [])
-        # Replace state variables in the human prompt template where they are mentioned in the prompt, if not already present then append them
-        # The format is {{var_name}} in the human prompt template
-        if agent_state_vars:
-            log_message(logs, f"Agent {agent_name} state variables: {agent_state_vars}")
-            for var in agent_state_vars:
-                var_value = state.get(var, "")
-                if var_value:
-                    if f"{{{{{var}}}}}" not in agent_human_prompt:
-                        agent_human_prompt += f"\n{var}: {var_value}"
-                    else:
-                        agent_human_prompt = agent_human_prompt.replace(f"{{{{{var}}}}}", var_value)
-                log_message(logs, f"Agent {agent_name} human prompt template {agent_human_prompt}")
+
+        # Replace state variables in the agent prompt template
+        agent_state_vars = agent_config.get("prompt_state_vars", [])
+        safe_prompt = _replace_state_vars_in_prompt(safe_prompt, agent_state_vars, state, agent_name, logs, prompt_type="Agent")
+        safe_prompt = ensure_utf8(safe_prompt) if safe_prompt else None
+
+        # Replace state variables in the human prompt template
+        human_state_vars = agent_config.get("human_prompt_state_vars", [])
+        agent_human_prompt = _replace_state_vars_in_prompt(agent_human_prompt, human_state_vars, state, agent_name, logs, prompt_type="Human")
         safe_human_prompt = ensure_utf8(agent_human_prompt) if agent_human_prompt else None
-        
+
+        # Tool output extraction for agent/system prompt
+        tool_output_extract = agent_config.get("tool_output_extract", None)
+        if tool_output_extract:
+            log_message(logs, f"Node {agent_name} tool output extraction config: {tool_output_extract}")
+            for extract_config in tool_output_extract:
+                safe_prompt = _extract_tool_output(state, extract_config, safe_prompt, agent_name, logs, is_human=False)
+            safe_prompt = ensure_utf8(safe_prompt) if safe_prompt else None
+
+        # Tool output extraction for human prompt
+        human_tool_output_extract = agent_config.get("human_tool_output_extract", None)
+        if human_tool_output_extract:
+            log_message(logs, f"Node {agent_name} human tool output extraction config: {human_tool_output_extract}")
+            for extract_config in human_tool_output_extract:
+                agent_human_prompt = _extract_tool_output(state, extract_config, agent_human_prompt, agent_name, logs, is_human=True)
+            safe_human_prompt = ensure_utf8(agent_human_prompt) if agent_human_prompt else None
+
         messages = [SystemMessage(content=safe_prompt)]
         if not safe_human_prompt:
             messages.append(HumanMessage(content=safe_input))
@@ -228,7 +302,7 @@ def handle_tool_calls(
         dict: A dictionary containing the results of the tool calls.
     """
     if hasattr(llm_response, "tool_calls") and llm_response.tool_calls:
-        tool_results = []
+        tool_results = {}
         collection_name = agent_config.get("embeddings_collection_name", None)
         for tool_call in llm_response.tool_calls:
             tool_name = tool_call.get("name")
@@ -258,8 +332,8 @@ def handle_tool_calls(
             else:
                 result = f"Error: Tool '{tool_name}' not found"
                 log_message(logs, f"Error: Tool '{tool_name}' not found in tools list.")
-            tool_results.append({"tool": tool_name, "result": result})
-        return json.dumps({"tool_results": tool_results})
+            tool_results[tool_name] = result
+        return json.dumps(tool_results)
     return None
 
 
@@ -331,7 +405,7 @@ def process_llm_response(
             llm_response_json = parse_llm_response(llm_response, output_format)
 
         newInput = llm_response_json
-        output_keys = agent_config.get("output_decision_keys", ["class"])
+        output_keys = agent_config.get("output_decision_keys", DEFAULT_WORKFLOW_CONFIG["default_output_decision_keys"])
         result = None
 
         if output_format or (

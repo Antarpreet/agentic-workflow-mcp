@@ -190,13 +190,16 @@ For supported workflow example configurations, see the [Config Examples](config_
 | `temperature` | number | The temperature to use for the agent. If different from the default temperature. | `false` | `0.0` |
 | `prompt` | string | The prompt to use for the agent. This takes precedence over `prompt_file`. The state properties can be dynamically injected using double curly-braces `{{AgentName_output}}`. | `true` | `You are an agent that orchestrates the workflow.` |
 | `prompt_file` | string | Either the absolute path to the prompt file or path to the prompt file in the format `agentic-workflow-mcp/YOUR_PROMPT_FILE_NAME` if the prompt file is added to the `agentic-workflow-mcp` in this repo. | `false` | `prompt.txt` |
+| `prompt_state_vars` | string[] | The state variables to use in the agent prompt. These will be replaced with the values from the workflow state. These can be used in the prompt using `{{var_name}}`. | `false` | `["user_input", "input"]` |
 | `human_prompt` | string | The prompt to use for the human input. If not provided, the default human prompt will be used. | `false` | `Follow the system prompt instructions and provide response` |
 | `human_prompt_file` | string | The prompt file to use for the human input. If not provided, the default human prompt file will be used. | `false` | `human_prompt.txt` |
-| `human_prompt_state_vars` | string[] | The state variables to use in the prompt. These will be replaced with the values from the workflow state. These can be used in the prompt using `{{var_name}}`. | `false` | `["agent_output"]` |
+| `human_prompt_state_vars` | string[] | The state variables to use in the human prompt. These will be replaced with the values from the workflow state. These can be used in the prompt using `{{var_name}}`. | `false` | `["agent_output"]` |
 | `output_decision_keys` | string[] | The keys in the output that will be used in the workflow state. | `false` | `["decision_key"]` |
 | `output_format` | object | The output format for the agent. | `false` | `{"type": "object", "properties": {"response": {"type": "string"}}, "required": ["response"]}` |
 | `tools` | string[] | The tools to use for the agent. | `false` | `["read_file"]` |
 | `tool_functions` | object[] | The functions to use for the tools. | `false` | `{"read_file":` [Tool](#tool)`}` |
+| `tool_output_extract` | object[] | The output extraction rules for the agent prompt. This is used to extract the output from the tool response and use it in the prompt using `{{var_name}}`. | `false` | `[`[Tool Output](#tool-output)`]` |
+| `human_tool_output_extract` | object[] | The output extraction rules for the human prompt. This is used to extract the output from the tool response and use it in the human prompt using `{{var_name}}`. | `false` | `[`[Tool Output](#tool-output)`]` |
 | `embeddings_collection_name` | string | The name of the ChromaDB vector database collection to use for the agent. | `false` | `langchain_chroma_collection` |
 
 ---
@@ -209,6 +212,16 @@ For supported workflow example configurations, see the [Config Examples](config_
 | `function_string` | string | The function string to use for the tool. | `true` | `lambda filename, workspace_path=None: open(filename if workspace_path is None else f'{workspace_path}/{filename}', 'r', encoding='utf-8').read()` |
 
 ---
+
+### Tool Output
+
+| Key | Type | Description | Required | Example |
+| --- | --- | --- | --- | --- |
+| `var_name` | string | The variable name to use in the prompt for the tool output. This will be replaced with the value from the tool response. | `true` | `agent_output` |
+| `agent_name` | string | The name of the agent that will use the tool. | `true` | `OrchestratorAgent` |
+| `tool_name` | string | The name of the tool that will be used in the agent. | `true` | `read_file` |
+| `response_index` | integer | The index of the response in the tool response if it's a list of values. This is used to extract the output from the tool response. If not provided, the full response will be used. Either this or `response_key` should exist. If both provided, this will be ignored. | `false` | `` |
+| `response_key` | string | The key in the tool response that will be used to extract the output if it's a JSON object. If not provided, the full response will be used. Either this or `response_index` should exist. | `false` | `` |
 
 ### Orchestrator
 
