@@ -188,7 +188,7 @@ def _replace_state_vars_in_prompt(prompt, state_vars, state, agent_name, logs, p
 
 def invoke_llm(
         state: dict, model: ChatOllama, prompt_template: str, current_input: str, tools: list, output_format: dict, agent_name: str,
-        agent_config: AgentConfig, workflow_config: WorkflowConfig, logs: list
+        agent_config: AgentConfig, logs: list
     ) -> str:
     """
     Invokes the LLM with the given prompt template and input, ensuring all inputs are UTF-8 encoded.
@@ -202,7 +202,6 @@ def invoke_llm(
         output_format (dict): The expected output format for the LLM response.
         agent_name (str): The name of the agent node.
         agent_config (AgentConfig): The configuration for this agent node.
-        workflow_config (WorkflowConfig): The workflow configuration dictionary.
         logs (list): List to store log messages during invocation.
 
     Returns:
@@ -479,7 +478,7 @@ def agent_node_action(
         return {}
 
     llm_response = invoke_llm(
-        state, model, prompt_template, current_input, tools, output_format, agent_name, agent_config, workflow_config, logs
+        state, model, prompt_template, current_input, tools, output_format, agent_name, agent_config, logs
     )
 
     update_dict = process_llm_response(
